@@ -101,3 +101,32 @@ def test_load_context_from_state():
     # Core should include recent cards and conclusions
     assert len(context.core_cards) >= 1
     assert len(context.connections) == 1
+
+
+def test_normalize_card():
+    """Test card normalization for backward compatibility."""
+    manager = ContextManager()
+
+    # Old card without type/metadata
+    old_card = {
+        "id": 1,
+        "text": "Old card",
+        "status": "pending"
+    }
+
+    normalized = manager._normalize_card(old_card.copy())
+    assert normalized["type"] == "note"
+    assert normalized["metadata"] == {}
+
+    # New card with type/metadata should remain unchanged
+    new_card = {
+        "id": 2,
+        "text": "New card",
+        "type": "distillation",
+        "metadata": {"keywords": ["test"]}
+    }
+
+    normalized = manager._normalize_card(new_card.copy())
+    assert normalized["type"] == "distillation"
+    assert normalized["metadata"] == {"keywords": ["test"]}
+

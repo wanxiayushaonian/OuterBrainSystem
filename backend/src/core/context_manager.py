@@ -11,6 +11,14 @@ class ContextManager:
     Peripheral region: Other cards (index only)
     """
 
+    def _normalize_card(self, card: Dict) -> Dict:
+        """Normalize card to include type and metadata for backward compatibility."""
+        if "type" not in card:
+            card["type"] = "note"
+        if "metadata" not in card:
+            card["metadata"] = {}
+        return card
+
     def _filter_recent_cards(self, cards: List[Dict], hours: int) -> List[Dict]:
         """Filter cards modified in last N hours."""
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
@@ -73,6 +81,9 @@ class ContextManager:
             HybridCanvasContext with core and peripheral cards
         """
         cards = state.get("cards", [])
+
+        # Normalize cards for backward compatibility
+        cards = [self._normalize_card(c) for c in cards]
 
         # 1. Load core cards (full content)
         recent = self._filter_recent_cards(cards, hours=1)
