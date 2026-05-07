@@ -1,0 +1,330 @@
+/* ═══════════════════════════════════════════════════════
+   Canvas Area, Cards, Connections, Controls
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Canvas Area ── */
+.canvas-area {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle, var(--border) 0.8px, transparent 0.8px);
+  background-size: 24px 24px;
+  background-color: var(--bg);
+}
+.canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 6000px; height: 6000px;
+  transform-origin: 0 0;
+}
+.canvas-inner {
+  position: relative;
+  width: 100%; height: 100%;
+}
+
+/* ── Canvas Card ── */
+.canvas-card {
+  position: absolute;
+  width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  cursor: move;
+  transition: box-shadow var(--transition), border-color var(--transition);
+  user-select: none;
+  z-index: 10;
+}
+.canvas-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+.canvas-card:hover .conn-port { opacity: 1; }
+.canvas-card.snap-target {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px oklch(70% 0.15 255 / 0.3), var(--shadow-md);
+  transition: box-shadow 0.15s ease;
+}
+.canvas-card.snap-target .conn-port { opacity: 1; background: var(--accent); border-color: var(--accent); }
+.conn-port {
+  position: absolute;
+  width: 10px; height: 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--muted);
+  border-radius: 50%;
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity 150ms, border-color 150ms, background 150ms;
+  z-index: 20;
+}
+.conn-port:hover { border-color: var(--accent); background: var(--accent-light); }
+.conn-port.top { top: -5px; left: 50%; transform: translateX(-50%); }
+.conn-port.right { right: -5px; top: 50%; transform: translateY(-50%); }
+.conn-port.bottom { bottom: -5px; left: 50%; transform: translateX(-50%); }
+.conn-port.left { left: -5px; top: 50%; transform: translateY(-50%); }
+.canvas-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light), var(--shadow-md);
+}
+.canvas-card .card-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 6px;
+  gap: 6px;
+}
+.canvas-card .card-type-icon {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.canvas-card .card-source {
+  font: 10px/1 var(--font-mono);
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.canvas-card .card-body {
+  font: 13px/1.5 var(--font-body);
+  color: var(--fg);
+}
+.canvas-card .card-body strong { font-weight: 600; }
+.canvas-card .card-body em { font-style: italic; color: var(--muted); }
+.canvas-card .card-body hr { border: none; border-top: 1px solid var(--border); margin: 6px 0; }
+.canvas-card .card-status-tag {
+  display: inline-block;
+  font: 10px/1 var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-top: 8px;
+}
+.card-status-tag.pending { background: oklch(92% 0.04 75); color: oklch(45% 0.12 75); }
+.card-status-tag.verified { background: oklch(92% 0.04 145); color: oklch(40% 0.12 145); }
+.card-status-tag.conclusion {
+  background: oklch(92% 0.06 85);
+  color: oklch(45% 0.15 85);
+  border: 1px solid oklch(78% 0.1 85);
+}
+
+/* ── Question Badge ── */
+.card-question-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  background: oklch(70% 0.15 300);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 13px/1 var(--font-body);
+  cursor: help;
+  z-index: 11;
+  box-shadow: 0 1px 3px oklch(0% 0 0 / 0.2);
+}
+
+/* ── Conclusion Card (special) ── */
+.canvas-card.conclusion-card {
+  border: 2px solid oklch(75% 0.12 85);
+  background: linear-gradient(135deg, var(--surface), oklch(97% 0.01 85));
+  box-shadow: 0 0 0 4px oklch(90% 0.06 85 / 0.3);
+  width: 260px;
+}
+.conclusion-card .card-summary {
+  font: 12px/1.55 var(--font-body);
+  color: var(--muted);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.conclusion-card .card-expand {
+  font: 11px/1 var(--font-body);
+  color: var(--accent);
+  cursor: pointer;
+  margin-top: 6px;
+  display: inline-block;
+}
+
+/* ── Connections SVG ── */
+.connections-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  overflow: visible;
+}
+.connections-svg line {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  opacity: 0.5;
+  stroke-linecap: round;
+}
+.connections-svg line.active { stroke: var(--accent); opacity: 1; }
+.connections-svg line.temp-line { stroke: var(--accent); opacity: 0.4; stroke-dasharray: 6 4; }
+.conn-label {
+  position: absolute;
+  font: 11px/1 var(--font-body);
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+  z-index: 15;
+  transition: all var(--transition);
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  transform: translate(-50%, -50%);
+}
+.conn-label:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+/* ── Canvas Controls (zoom, fit) ── */
+.canvas-controls {
+  position: absolute;
+  bottom: 16px; right: 16px;
+  display: flex; gap: 4px;
+  z-index: 50;
+}
+.canvas-controls button {
+  width: 32px; height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: 14px/1 var(--font-body);
+  color: var(--fg);
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.canvas-controls button:hover { border-color: var(--accent); color: var(--accent); }
+.zoom-display {
+  font: 11px/1 var(--font-mono);
+  color: var(--muted);
+  display: flex; align-items: center;
+  padding: 0 6px;
+  min-width: 42px;
+  justify-content: center;
+}
+
+/* ── Canvas Group ── */
+.canvas-group {
+  position: absolute;
+  border-radius: var(--radius);
+  border: 1.5px dashed oklch(70% 0.06 255 / 0.35);
+  z-index: 1;
+  pointer-events: none;
+}
+.group-title {
+  position: absolute;
+  top: 6px; left: 12px;
+  display: flex; align-items: center; gap: 8px;
+  font: 13px/1 var(--font-body);
+  color: var(--fg);
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+}
+.group-name { font-weight: 700; }
+.group-count {
+  background: oklch(85% 0.01 250);
+  color: oklch(50% 0.01 250);
+  padding: 2px 7px;
+  border-radius: 8px;
+  font: 11px/1 var(--font-mono);
+}
+.group-toggle {
+  font-size: 12px;
+  color: var(--muted);
+  transition: color var(--transition);
+}
+.group-title:hover .group-toggle { color: var(--accent); }
+
+/* ── Collapsed Group Pill ── */
+.canvas-group.collapsed {
+  width: auto;
+  height: auto;
+  border: 2px solid oklch(65% 0.08 255 / 0.5);
+  border-radius: 8px;
+  padding: 8px 14px;
+  pointer-events: auto;
+  cursor: move;
+  z-index: 2;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+.canvas-group.collapsed:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+.canvas-group.collapsed .group-title {
+  position: static;
+  font-size: 12px;
+  gap: 8px;
+}
+.canvas-group.collapsed .group-name { font-weight: 700; }
+.canvas-group.collapsed .group-count {
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+/* ── Wikilinks ── */
+.wikilink {
+  color: var(--accent);
+  background: oklch(92% 0.04 255 / 0.3);
+  padding: 0 3px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background var(--transition);
+  font-weight: 500;
+}
+.wikilink:hover {
+  background: oklch(85% 0.08 255 / 0.4);
+  text-decoration: underline;
+}
+.wikilink[data-wiki-target="-1"] {
+  color: var(--muted);
+  background: oklch(92% 0.01 250 / 0.3);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+/* ── Selection Box ── */
+.selection-box {
+  position: absolute;
+  border: 1.5px dashed var(--accent);
+  background: oklch(58% 0.18 255 / 0.06);
+  z-index: 8;
+  pointer-events: none;
+  display: none;
+}
+
+/* ── Depth Highlight ── */
+.canvas-card.highlight-depth-0 {
+  border: 2px solid var(--accent) !important;
+  box-shadow: 0 0 12px oklch(60% 0.2 255 / 0.4);
+  z-index: 10;
+}
+.canvas-card.highlight-depth-1 {
+  border: 2px solid oklch(55% 0.16 145) !important;
+  box-shadow: 0 0 8px oklch(55% 0.16 145 / 0.3);
+  z-index: 9;
+}
+.canvas-card.highlight-depth-2 {
+  border: 2px solid oklch(55% 0.14 300) !important;
+  box-shadow: 0 0 8px oklch(55% 0.14 300 / 0.3);
+  z-index: 9;
+}
+.canvas-card.highlight-depth-3 {
+  border: 2px solid oklch(55% 0.14 35) !important;
+  box-shadow: 0 0 8px oklch(55% 0.14 35 / 0.3);
+  z-index: 9;
+}
+.canvas-card.highlight-dim {
+  opacity: 0.18;
+  transition: opacity 0.2s;
+}
+.conn-label.conn-dim {
+  opacity: 0.1;
+}
+.conn-label.conn-highlight {
+  font-weight: 600;
+  opacity: 1;
+  z-index: 5;
+}
