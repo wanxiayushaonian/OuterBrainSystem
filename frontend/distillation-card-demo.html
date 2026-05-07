@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Distillation Card Demo</title>
+  <link rel="stylesheet" href="../src/shared/components/distillation-card.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 40px;
+      background: #f5f5f5;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 30px;
+    }
+    .demo-card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .demo-title {
+      font-size: 14px;
+      color: #7f8c8d;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <h1>📝 Distillation Card 组件演示</h1>
+
+  <div class="demo-card">
+    <div class="demo-title">示例 1: 基础提炼卡片</div>
+    <div class="distillation-card">
+      <div class="distillation-title">AI 提升开发效率的核心价值</div>
+
+      <div class="distillation-keywords">
+        <div class="keywords-label">提取的关键词：</div>
+        <div class="keywords-list">
+          <label class="keyword-item">
+            <input type="checkbox" class="keyword-checkbox" checked>
+            <span class="keyword-text">AI</span>
+          </label>
+          <label class="keyword-item">
+            <input type="checkbox" class="keyword-checkbox">
+            <span class="keyword-text">开发效率</span>
+          </label>
+          <label class="keyword-item">
+            <input type="checkbox" class="keyword-checkbox" checked>
+            <span class="keyword-text">自动化</span>
+          </label>
+          <label class="keyword-item">
+            <input type="checkbox" class="keyword-checkbox">
+            <span class="keyword-text">代码生成</span>
+          </label>
+        </div>
+      </div>
+
+      <details class="distillation-original">
+        <summary>原始内容</summary>
+        <div class="original-text">我们讨论了 AI 如何通过自动化工具和代码生成能力，显著提升开发效率。特别是在重复性任务和样板代码生成方面，AI 工具可以节省大量时间，让开发者专注于更有创造性的工作。</div>
+      </details>
+
+      <details class="distillation-reasoning">
+        <summary>提炼理由</summary>
+        <div class="reasoning-text">核心观点聚焦在 AI 工具的实际应用价值，特别是自动化和效率提升两个维度。关键词选择反映了技术手段（AI、自动化）和目标结果（开发效率、代码生成）。</div>
+      </details>
+    </div>
+  </div>
+
+  <div class="demo-card">
+    <div class="demo-title">示例 2: 带推荐关键词的卡片</div>
+    <div class="distillation-card">
+      <div class="distillation-title">机器学习模型优化策略</div>
+
+      <div class="distillation-keywords">
+        <div class="keywords-label">提取的关键词：</div>
+        <div class="keywords-list">
+          <label class="keyword-item">
+            <input type="checkbox" class="keyword-checkbox" checked>
+            <span class="keyword-text">机器学习</span>
+          </label>
+          <label class="keyword-item">
+            <input type="checkbox" class="keyword-checkbox" checked>
+            <span class="keyword-text">模型优化</span>
+          </label>
+          <label class="keyword-item">
+            <input type="checkbox" class="keyword-checkbox">
+            <span class="keyword-text">性能调优</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="distillation-recommended">
+        <div class="recommended-label">推荐关键词（画布已有）：</div>
+        <div class="recommended-list">
+          <span class="recommended-keyword">AI</span>
+          <span class="recommended-keyword">自动化</span>
+          <span class="recommended-keyword">深度学习</span>
+        </div>
+      </div>
+
+      <details class="distillation-original">
+        <summary>原始内容</summary>
+        <div class="original-text">讨论了如何通过超参数调优、模型架构优化和数据增强等方法，提升机器学习模型的性能。重点关注了训练效率和推理速度的平衡。</div>
+      </details>
+    </div>
+  </div>
+
+  <div class="demo-card">
+    <div class="demo-title">示例 3: 简洁版（无推荐关键词和理由）</div>
+    <div class="distillation-card">
+      <div class="distillation-title">敏捷开发的核心原则</div>
+
+      <div class="distillation-keywords">
+        <div class="keywords-label">提取的关键词：</div>
+        <div class="keywords-list">
+          <label class="keyword-item">
+            <input type="checkbox" class="keyword-checkbox">
+            <span class="keyword-text">敏捷开发</span>
+          </label>
+          <label class="keyword-item">
+            <input type="checkbox" class="keyword-checkbox" checked>
+            <span class="keyword-text">迭代</span>
+          </label>
+          <label class="keyword-item">
+            <input type="checkbox" class="keyword-checkbox">
+            <span class="keyword-text">用户反馈</span>
+          </label>
+          <label class="keyword-item">
+            <input type="checkbox" class="keyword-checkbox" checked>
+            <span class="keyword-text">持续交付</span>
+          </label>
+        </div>
+      </div>
+
+      <details class="distillation-original">
+        <summary>原始内容</summary>
+        <div class="original-text">敏捷开发强调快速迭代、持续交付和及时响应用户反馈。通过短周期的开发循环，团队可以更灵活地适应需求变化，降低项目风险。</div>
+      </details>
+    </div>
+  </div>
+
+  <script>
+    // Add interactive behavior
+    document.querySelectorAll('.keyword-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', (e) => {
+        const label = e.target.closest('.keyword-item');
+        if (e.target.checked) {
+          console.log('Selected:', label.querySelector('.keyword-text').textContent);
+        } else {
+          console.log('Deselected:', label.querySelector('.keyword-text').textContent);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
