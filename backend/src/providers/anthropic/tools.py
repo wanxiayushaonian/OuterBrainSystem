@@ -12,7 +12,14 @@ class AddCardTool(Tool):
 
     @property
     def description(self) -> str:
-        return "在画布上创建新卡片。卡片是思维碎片的基本单元。"
+        return """在画布上创建新卡片。支持 7 种卡片类型：
+        - note (默认): 基础笔记
+        - distillation: 提炼卡片，需要 metadata
+        - socratic: 质疑卡片，需要 metadata
+        - flow_analysis: 流程分析，需要 metadata
+        - choice: 选择卡片，需要 metadata
+        - vote: 投票卡片，需要 metadata
+        - conclusion: 结论卡片，需要 summary 字段"""
 
     @property
     def schema(self) -> Dict[str, Any]:
@@ -26,6 +33,24 @@ class AddCardTool(Tool):
                 "source": {
                     "type": "string",
                     "description": "卡片来源标签（如：浏览器、笔记、终端等）"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["note", "distillation", "socratic", "flow_analysis", "choice", "vote", "conclusion"],
+                    "description": "卡片类型（可选，默认为 note）"
+                },
+                "metadata": {
+                    "type": "object",
+                    "description": "卡片元数据（可选，用于专门类型的卡片）"
+                },
+                "summary": {
+                    "type": "string",
+                    "description": "结论摘要（仅用于 conclusion 类型）"
+                },
+                "chainIds": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": "关联的卡片ID列表（仅用于 conclusion 类型）"
                 },
                 "x": {
                     "type": "number",
@@ -55,8 +80,18 @@ class AddCardTool(Tool):
             "y": arguments.get("y", 0),
             "inCanvas": True,
             "status": "",
-            "time": ""
+            "time": "",
+            "type": arguments.get("type", "note"),
         }
+
+        # Add optional fields
+        if "metadata" in arguments:
+            card["metadata"] = arguments["metadata"]
+        if "summary" in arguments:
+            card["summary"] = arguments["summary"]
+        if "chainIds" in arguments:
+            card["chainIds"] = arguments["chainIds"]
+
         canvas_context.cards.append(card)
         return new_id
 

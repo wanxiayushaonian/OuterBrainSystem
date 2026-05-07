@@ -264,8 +264,97 @@ class AnthropicRuntime(ChatRuntime):
 ### 可用关系类型（创建连接时必须从中选择）
 {labels_section}
 
+## 卡片类型系统
+
+系统支持 7 种卡片类型，每种有不同的用途和展示方式：
+
+1. **note** (📝 笔记卡片) - 默认类型
+   - 用途：基础笔记、想法记录
+   - 字段：text, title (可选), keywords (可选)
+
+2. **distillation** (💎 提炼卡片)
+   - 用途：从长文本中提炼关键信息
+   - 必需字段：text (提炼后的核心内容)
+   - metadata 结构：
+     {{
+       "original_text": "原始长文本",
+       "extracted_keywords": ["关键词1", "关键词2"],
+       "recommended_keywords": ["推荐词1"],
+       "user_selected_keywords": [],
+       "reasoning": "提炼理由"
+     }}
+
+3. **socratic** (❓ 苏格拉底质疑卡片)
+   - 用途：对观点进行批判性思考
+   - 必需字段：text (质疑的主题)
+   - metadata 结构：
+     {{
+       "original_claim": "原始观点",
+       "challenges": [
+         {{"question": "质疑问题", "response": "AI回应", "user_reflection": ""}}
+       ],
+       "reasoning": "质疑理由"
+     }}
+
+4. **flow_analysis** (🔄 流程分析卡片)
+   - 用途：分析流程、论证结构
+   - 必需字段：text (流程标题)
+   - metadata 结构：
+     {{
+       "flow_type": "流程类型",
+       "stages": [
+         {{"name": "阶段名", "description": "描述", "insights": [], "issues": []}}
+       ],
+       "overall_insight": "整体洞察",
+       "reasoning": "分析理由"
+     }}
+
+5. **choice** (🎯 选择卡片)
+   - 用途：决策分析，对比多个方案
+   - 必需字段：text (决策主题)
+   - metadata 结构：
+     {{
+       "context": "决策背景",
+       "options": [
+         {{"name": "方案名", "description": "描述", "pros": [], "cons": [], "score": 8}}
+       ],
+       "recommendation": "推荐建议",
+       "user_choice": null,
+       "reasoning": "分析理由"
+     }}
+
+6. **vote** (🗳️ 投票卡片)
+   - 用途：收集意见，快速投票
+   - 必需字段：text (投票标题)
+   - metadata 结构：
+     {{
+       "question": "投票问题",
+       "options": [
+         {{"id": "opt1", "text": "选项1", "votes": 0}}
+       ],
+       "allow_multiple": false,
+       "user_votes": [],
+       "total_voters": 0,
+       "reasoning": "投票说明"
+     }}
+
+7. **conclusion** (🎓 结论卡片)
+   - 用途：汇总多个卡片的结论
+   - 必需字段：text (结论标题), summary (结论内容)
+   - 可选字段：chainIds (关联的卡片ID列表)
+
+## 何时使用哪种卡片类型
+
+- 用户要求"提炼"、"总结"、"浓缩" → 使用 **distillation**
+- 用户要求"质疑"、"挑战"、"反思" → 使用 **socratic**
+- 用户要求"分析流程"、"论证结构" → 使用 **flow_analysis**
+- 用户要求"对比方案"、"决策分析" → 使用 **choice**
+- 用户要求"投票"、"收集意见" → 使用 **vote**
+- 用户要求"总结结论"、"汇总" → 使用 **conclusion**
+- 其他情况 → 使用默认的 **note**
+
 ## 可用工具
-- add_card: 创建新卡片
+- add_card: 创建新卡片（支持 type 和 metadata 参数）
 - edit_card: 修改卡片内容或状态
 - delete_card: 删除卡片及其连接
 - move_card: 移动卡片位置
@@ -280,5 +369,6 @@ class AnthropicRuntime(ChatRuntime):
 - 使用合理的位置布局卡片
 - 连接的label必须从可用关系类型中选择
 - 分析画布时，关注逻辑完整性和薄弱环节
-- 状态含义：pending=待验证, verified=已验证, conclusion=结论"""
+- 状态含义：pending=待验证, verified=已验证, conclusion=结论
+- 创建专门类型的卡片时，必须提供正确的 metadata 结构"""
 
