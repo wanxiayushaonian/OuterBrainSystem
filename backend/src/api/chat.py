@@ -151,13 +151,16 @@ async def stream_chat_response(
 
 @router.post("/stream")
 async def chat_stream(request: ChatRequest):
-    """Stream chat endpoint.
+    """Stream chat endpoint with Agent Router support.
 
     Returns:
         SSE stream of chat responses
     """
     from src.core.session import SessionStorage
     from src.core.context_manager import ContextManager
+    from src.core.agent_router import AgentRouter
+    from src.agents.distillation_agent import DistillationAgent
+    from src.core import ProviderRegistry
 
     storage = SessionStorage()
     await storage.init_db()
@@ -190,13 +193,103 @@ async def chat_stream(request: ChatRequest):
         hybrid_context.total_cards
     )
 
-    return StreamingResponse(
-        stream_chat_response(
-            request.session_id,
+    # Check if Agent Router should be used (keyword detection)
+    # Phase 2: Simple check for distillation keywords
+    user_input_lower = request.input.lower()
+    distillation_keywords = ["提炼", "总结", "浓缩", "distill", "summarize"]
+    use_agent_router = any(kw in user_input_lower for kw in distillation_keywords)
+
+    if use_agent_router:
+        logger.info("Using Agent Router for request")
+        # Create runtime for agents
+        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+        if not api_key:
+            return StreamingResponse(
+                _error_stream("ANTHROPIC_API_KEY not set"),
+                media_type="text/event-stream"
+            )
+
+        base_url = os.environ.get("ANTHROPIC_BASE_URL")
+        model = os.environ.get("ANTHROPIC_MODEL")
+        runtime = ProviderRegistry.create_runtime(
             request.provider_id,
-            request.input,
-            canvas_context,
-            session_manager
-        ),
-        media_type="text/event-stream"
-    )
+            api_key=api_key,
+            base_url=base_url,
+            model=model
+        )
+
+        # Initialize Agent Router
+        router = AgentRouter()
+        router.register_agent(DistillationAgent(runtime))
+
+        # Get session for conversation history
+        session = await session_manager.get_session(request.session_id)
+        session_messages = session.messages if session else []
+
+        # Route to appropriate agent
+        try:
+            agent_result = await router.route(
+                user_input=request.input,
+                context=canvas_context,
+                session_messages=session_messages
+            )
+
+            return StreamingResponse(
+                _agent_result_stream(agent_result),
+                media_type="text/event-stream"
+            )
+        except Exception as e:
+            logger.exception("Agent routing failed")
+            return StreamingResponse(
+                _error_stream(f"Agent error: {str(e)}"),
+                media_type="text/event-stream"
+            )
+    else:
+        # Use original chat flow
+        return StreamingResponse(
+            stream_chat_response(
+                request.session_id,
+                request.provider_id,
+                request.input,
+                canvas_context,
+                session_manager
+            ),
+            media_type="text/event-stream"
+        )
+
+
+async def _agent_result_stream(agent_result: Dict[str, Any]):
+    """Stream agent result as SSE events.
+
+    Args:
+        agent_result: Agent execution result
+
+    Yields:
+        SSE formatted events
+    """
+    # Send agent message
+    if "message" in agent_result:
+        yield f"data: {json.dumps({'type': 'text', 'content': agent_result['message']})}\n\n"
+
+    # Send agent action (e.g., create_card)
+    if agent_result.get("action") == "create_card":
+        yield f"data: {json.dumps({'type': 'agent_action', 'action': 'create_card', 'card': agent_result['card']})}\n\n"
+
+    # Send metadata
+    if "metadata" in agent_result:
+        yield f"data: {json.dumps({'type': 'agent_metadata', 'metadata': agent_result['metadata']})}\n\n"
+
+    # Send done
+    yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+
+async def _error_stream(error_message: str):
+    """Stream error message.
+
+    Args:
+        error_message: Error message
+
+    Yields:
+        SSE formatted error event
+    """
+    yield f"data: {json.dumps({'type': 'error', 'error': error_message})}\n\n"
