@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nexus — 外脑思维链路管理系统</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+  <script type="module" src="/src/main.ts"></script>
+</head>
+<body>
+
+<div class="app">
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+        Nexus
+      </div>
+      <div class="topbar-sep"></div>
+      <nav class="topbar-nav">
+        <button class="active" data-i18n="nav-canvas">画布 Canvas</button>
+        <button data-i18n="nav-inbox">收件箱 Inbox</button>
+        <button data-i18n="nav-conclusions">结论 Conclusions</button>
+      </nav>
+      <div class="topbar-sep"></div>
+      <div class="space-selector" id="spaceSelector">
+        <button class="space-selector-btn" id="spaceSelectorBtn">
+          <span class="space-name" id="spaceName">--</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="space-dropdown" id="spaceDropdown"></div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="topbar-btn" id="topbarAiBtn" title="AI 对话" data-i18n-title="ai-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      </button>
+      <span class="topbar-kbd" data-i18n="kbd-capture">Ctrl+Shift+C 捕捉</span>
+      <button class="topbar-btn" id="topbarCaptureBtn" data-i18n="btn-capture">+ 新建捕捉</button>
+    </div>
+  </header>
+
+  <!-- SESSION TABS -->
+  <div id="sessionTabs"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" data-view="inbox" data-i18n="sidebar-inbox">收件箱</button>
+        <button class="sidebar-tab" data-view="outline" data-i18n="sidebar-outline">大纲</button>
+      </div>
+      <span class="sidebar-count" id="inboxCount">5</span>
+    </div>
+    <div class="sidebar-search">
+      <input type="text" placeholder="搜索卡片…" id="searchInput" data-i18n-placeholder="search-placeholder"/>
+      <button class="search-mode-btn" id="searchModeBtn" title="语义搜索 Semantic" data-i18n-title="search-semantic-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+    </div>
+    <div class="sidebar-list" id="inboxList"></div>
+  </aside>
+
+  <!-- CANVAS -->
+  <main class="canvas-area" id="canvasArea">
+    <div class="canvas" id="canvas">
+      <svg class="connections-svg" id="connectionsSvg" overflow="visible"></svg>
+      <div class="canvas-inner" id="canvasInner"></div>
+      <div class="selection-box" id="selectionBox"></div>
+    </div>
+
+    <!-- Version overlay -->
+    <div class="version-overlay" id="versionOverlay">
+      <span id="versionLabel" data-i18n="version-viewing">正在查看 3小时前的版本</span>
+      <button class="restore-btn" id="versionRestoreBtn" data-i18n="version-restore">回到此版本 Restore</button>
+    </div>
+
+    <!-- Canvas controls -->
+    <div class="canvas-controls">
+      <button id="discoverBtn" title="发现关系 Discover" data-i18n-title="discover-title" style="font-size:12px;width:auto;padding:0 8px;gap:4px;display:flex;align-items:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span data-i18n="discover-btn">发现</span>
+      </button>
+      <button id="zoomOutBtn" title="缩小" data-i18n-title="zoom-out">−</button>
+      <span class="zoom-display" id="zoomDisplay">100%</span>
+      <button id="zoomInBtn" title="放大" data-i18n-title="zoom-in">+</button>
+      <button id="zoomFitBtn" title="适应画面" data-i18n-title="zoom-fit">⊡</button>
+    </div>
+  </main>
+
+  <!-- GITGRAPH PANEL -->
+  <button class="gitgraph-fab" id="gitgraphFab" title="版本图 Version Graph" data-i18n-title="gitgraph-fab-title">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 01-9 9"/></svg>
+    <span class="fab-badge" id="fabBadge">0</span>
+  </button>
+  <div class="gitgraph-panel" id="gitgraphPanel">
+    <div class="gitgraph-branch-dropdown" id="graphBranchDropdown"></div>
+    <div class="gitgraph-header">
+      <div class="gitgraph-header-left">
+        <h3 data-i18n="graph-title">版本图 Graph</h3>
+        <span class="gitgraph-branch-tag" id="graphBranchTag">main</span>
+      </div>
+      <div class="gitgraph-header-actions">
+        <button id="graphMarkBtn" title="标记版本" data-i18n-title="timeline-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        </button>
+        <button id="graphCreateBranch" title="创建分支" data-i18n-title="timeline-branch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 01-9 9"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="gitgraph-body" id="gitgraphBody"></div>
+    <div class="gitgraph-footer">
+      <span class="gitgraph-info" id="graphInfo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="graphInfoText">当前 · 14:32</span>
+      </span>
+      <div class="gitgraph-footer-actions">
+        <button id="graphRestoreBtn" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          <span data-i18n="version-restore">恢复 Restore</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="gitgraph-tooltip" id="gitgraphTooltip"></div>
+</div>
+
+<!-- AI BACKDROP -->
+<div class="backdrop" id="aiBackdrop"></div>
+
+<!-- AI PANEL -->
+<div class="ai-panel" id="aiPanel">
+  <!-- Chat view header -->
+  <div class="ai-panel-header" id="aiChatHeader">
+    <div class="ai-panel-title">
+      <button class="ai-panel-back" id="aiBackBtn" title="对话列表 Conversations">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span id="aiChatTitle">新对话</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:2px">
+      <button class="ai-panel-yolo" id="aiYoloBtn" title="切换 YOLO 模式（自动批准所有操作）">🔒 审批</button>
+      <button class="ai-panel-clear" id="aiClearBtn" title="清空对话 Clear Chat">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+      </button>
+      <button class="ai-panel-close" id="aiPanelClose">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+  <!-- Conversation list view header -->
+  <div class="ai-panel-header" id="aiListHeader" style="display:none">
+    <div class="ai-panel-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span data-i18n="ai-title">AI 对话</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:2px">
+      <button class="ai-panel-new" id="aiNewBtn" title="新建对话 New Chat">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="ai-panel-close" id="aiPanelClose2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+  <!-- Chat messages -->
+  <div class="ai-panel-body" id="aiMessages"></div>
+  <!-- Conversation list -->
+  <div class="ai-panel-body" id="aiConvList" style="display:none"></div>
+  <!-- Chat footer -->
+  <div class="ai-panel-footer" id="aiChatFooter">
+    <div class="ai-input-wrap">
+      <textarea rows="1" placeholder="追问 AI…" id="aiInput" data-i18n-placeholder="ai-input-placeholder"></textarea>
+      <button id="aiSendBtn" data-i18n="ai-send">发送</button>
+      <button id="aiStopBtn" style="display:none" data-i18n="ai-stop">停止</button>
+    </div>
+  </div>
+</div>
+
+<!-- CAPTURE POPUP -->
+<div class="backdrop" id="backdrop"></div>
+<div class="capture-popup" id="capturePopup">
+  <div class="capture-head">
+    <h3>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+      <span data-i18n="capture-title">快速捕捉 Quick Capture</span>
+    </h3>
+    <button class="close-btn" id="captureClose">×</button>
+  </div>
+  <div class="capture-body">
+    <textarea id="captureInput" placeholder="输入想法、粘贴链接、记录灵感…" data-i18n-placeholder="capture-placeholder"></textarea>
+  </div>
+  <div class="capture-footer">
+    <div class="capture-meta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      <span id="captureSource">来源: Nexus 画布 · 当前时间</span>
+    </div>
+    <button class="capture-submit" id="captureSubmit" data-i18n="capture-submit">存入收件箱</button>
+  </div>
+</div>
+
+<!-- CONTEXT MENU (canvas card) -->
+<div class="context-menu" id="contextMenu">
+  <div class="context-menu-item" data-action="ctx-question">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    <span data-i18n="ctx-question">质询这组想法 Question</span>
+  </div>
+  <div class="context-menu-item" data-action="ctx-set-question">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span data-i18n="ctx-set-question">设置开放问题 Set Question</span>
+  </div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item" data-action="ctx-conclude">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <span data-i18n="ctx-conclude">固化为结论 Conclude</span>
+  </div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item" data-action="ctx-debate">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    <span data-i18n="ctx-debate">辩证分析 Debate</span>
+  </div>
+  <div class="context-menu-item" data-action="ctx-group">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span data-i18n="ctx-group">创建分组 Create Group</span>
+  </div>
+  <div class="context-menu-item" data-action="ctx-ungroup" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+    <span data-i18n="ctx-ungroup">解散分组 Ungroup</span>
+  </div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item" data-action="ctx-to-inbox">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><path d="M20 10a9 9 0 11-5.63-8.37L10 6"/></svg>
+    <span data-i18n="ctx-to-inbox">回收到收件箱 Move to Inbox</span>
+  </div>
+  <div class="context-menu-item" data-action="ctx-delete">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+    <span data-i18n="ctx-delete">删除卡片 Delete</span>
+  </div>
+</div>
+
+<!-- CONNECTION CONTEXT MENU -->
+<div class="context-menu" id="connContextMenu">
+  <div class="context-menu-item" data-action="conn-cycle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-12.28L1 10"/></svg>
+    <span data-i18n="ctx-cycle-label">切换关系 Cycle Label</span>
+  </div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item" data-action="conn-delete">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+    <span data-i18n="ctx-delete-conn">删除连接 Delete Connection</span>
+  </div>
+</div>
+
+<!-- INBOX CONTEXT MENU -->
+<div class="context-menu" id="inboxContextMenu">
+  <div class="context-menu-item" data-action="inbox-to-canvas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    <span data-i18n="ctx-to-canvas">移到画布 Move to Canvas</span>
+  </div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item" data-action="inbox-delete">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+    <span data-i18n="ctx-delete">删除卡片 Delete</span>
+  </div>
+</div>
+
+<!-- RENAME MODAL -->
+<div class="rename-modal" id="renameModal">
+  <h4 data-i18n="rename-title">命名版本 Name Version</h4>
+  <input type="text" id="renameInput" placeholder="如：确定了核心架构…" data-i18n-placeholder="rename-placeholder"/>
+  <div class="rename-modal-actions">
+    <button id="renameClose" data-i18n="btn-cancel">取消 Cancel</button>
+    <button class="primary" id="renameSave" data-i18n="btn-save">保存标记 Save</button>
+  </div>
+</div>
+
+<!-- BRANCH CREATION MODAL -->
+<div class="rename-modal" id="branchModal">
+  <h4 data-i18n="branch-create-title">创建分支 Create Branch</h4>
+  <input type="text" id="branchNameInput" placeholder="如：探索另一个方向…" data-i18n-placeholder="branch-create-placeholder"/>
+  <div class="rename-modal-actions">
+    <button id="branchClose" data-i18n="btn-cancel">取消 Cancel</button>
+    <button class="primary" id="branchCreate" data-i18n="btn-create">创建 Create</button>
+  </div>
+</div>
+
+<!-- DELETE SESSION CONFIRMATION MODAL -->
+<div class="rename-modal" id="deleteSessionModal">
+  <h4 data-i18n="confirm-close-session">确定关闭此会话？</h4>
+  <p style="font-size:12px;color:var(--muted);margin:8px 0 16px">会话历史将被永久删除</p>
+  <div class="rename-modal-actions">
+    <button id="deleteSessionCancel" data-i18n="btn-cancel">取消 Cancel</button>
+    <button class="primary" id="deleteSessionConfirm" style="background:oklch(55% 0.18 25)">删除 Delete</button>
+  </div>
+</div>
+
+<!-- GROUP CREATION MODAL -->
+<div class="rename-modal" id="groupModal">
+  <h4 data-i18n="group-create-title">创建分组 Create Group</h4>
+  <input type="text" id="groupNameInput" placeholder="如：核心论点…" data-i18n-placeholder="group-create-placeholder"/>
+  <div class="rename-modal-actions">
+    <button id="groupClose" data-i18n="btn-cancel">取消 Cancel</button>
+    <button class="primary" id="groupCreate" data-i18n="btn-create">创建 Create</button>
+  </div>
+</div>
+
+<!-- SPACE CREATION MODAL -->
+<div class="rename-modal" id="spaceModal">
+  <h4 data-i18n="space-create-title">创建新空间 Create Space</h4>
+  <input type="text" id="spaceNameInput" placeholder="如：项目A…" data-i18n-placeholder="space-create-placeholder"/>
+  <div class="rename-modal-actions">
+    <button id="spaceClose" data-i18n="btn-cancel">取消 Cancel</button>
+    <button class="primary" id="spaceCreate" data-i18n="btn-create">创建 Create</button>
+  </div>
+</div>
+
+<!-- CLEAR VERSIONS CONFIRM MODAL -->
+<div class="rename-modal" id="clearVersionsModal">
+  <h4>清除所有版本快照</h4>
+  <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px">此操作不可撤销，所有版本历史和分支将被清除。</p>
+  <div class="rename-modal-actions">
+    <button id="clearVersionsCancel">取消</button>
+    <button class="primary" id="clearVersionsConfirm" style="background:oklch(55% 0.15 25)">确认清除</button>
+  </div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<button class="tweaks-fab" id="tweaksFab" title="设置 Settings">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+</button>
+<div class="settings-panel" id="tweaksPanel">
+  <div class="tweaks-drag-handle" id="tweaksDragHandle">
+    <svg viewBox="0 0 24 6" fill="currentColor"><rect x="2" y="0" width="20" height="2" rx="1"/><rect x="2" y="4" width="20" height="2" rx="1"/></svg>
+  </div>
+  <!-- Tabs -->
+  <div class="settings-tabs" id="settingsTabs">
+    <button class="settings-tab active" data-tab="general">通用</button>
+    <button class="settings-tab" data-tab="labels">关系</button>
+    <button class="settings-tab" data-tab="shortcuts">快捷键</button>
+  </div>
+  <!-- Tab: General -->
+  <div class="settings-tab-content active" data-tab="general">
+    <div class="settings-section-label" data-i18n="tweaks-language">语言 Language</div>
+    <div class="tweaks-lang-group" id="tweaksLangGroup">
+      <button class="active" data-lang="bilingual">双语</button>
+      <button data-lang="zh">中文</button>
+      <button data-lang="en">EN</button>
+    </div>
+    <div class="settings-danger-zone">
+      <button class="settings-danger-btn" id="clearVersionsBtn">清除所有版本快照</button>
+    </div>
+  </div>
+  <!-- Tab: Labels -->
+  <div class="settings-tab-content" data-tab="labels">
+    <div class="settings-section-label" data-i18n="tweaks-packs">关系包 Label Packs</div>
+    <div class="tweaks-packs" id="tweaksPacks"></div>
+    <div class="settings-section-label" data-i18n="tweaks-labels" style="margin-top:12px">关系类型 Labels</div>
+    <div class="tweaks-labels" id="tweaksLabels"></div>
+    <div class="tweaks-label-add">
+      <input type="text" id="newLabelInput" placeholder="新关系类型…" data-i18n-placeholder="label-add-placeholder"/>
+      <button id="addLabelBtn" data-i18n="label-add">添加</button>
+    </div>
+  </div>
+  <!-- Tab: Shortcuts -->
+  <div class="settings-tab-content" data-tab="shortcuts">
+    <div class="settings-section-label">画布操作</div>
+    <div class="shortcut-list">
+      <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>Z</kbd><span>撤销</span></div>
+      <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd><span>重做</span></div>
+      <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>A</kbd><span>全选画布卡片</span></div>
+      <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>D</kbd><span>复制选中卡片</span></div>
+      <div class="shortcut-item"><kbd>Delete</kbd><span>删除选中</span></div>
+      <div class="shortcut-item"><kbd>Escape</kbd><span>取消选择 / 关闭面板</span></div>
+    </div>
+    <div class="settings-section-label">版本与保存</div>
+    <div class="shortcut-list">
+      <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>S</kbd><span>保存版本（命名）</span></div>
+      <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd><span>快速保存快照</span></div>
+      <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>B</kbd><span>创建分支</span></div>
+    </div>
+    <div class="settings-section-label">快速操作</div>
+    <div class="shortcut-list">
+      <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd><span>快速捕捉</span></div>
+    </div>
+    <div class="settings-section-label">鼠标操作</div>
+    <div class="shortcut-list">
+      <div class="shortcut-item"><kbd>滚轮</kbd><span>缩放画布</span></div>
+      <div class="shortcut-item"><kbd>拖拽空白</kbd><span>框选 / 平移</span></div>
+      <div class="shortcut-item"><kbd>Shift</kbd>+<kbd>点击</kbd><span>多选卡片</span></div>
+      <div class="shortcut-item"><kbd>拖拽端口</kbd><span>创建连接</span></div>
+      <div class="shortcut-item"><kbd>双击卡片</kbd><span>编辑内容</span></div>
+      <div class="shortcut-item"><kbd>右键</kbd><span>上下文菜单</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- CARD AI CHAT POPUP -->
+<div class="card-ai-popup" id="cardAiPopup">
+  <div class="card-ai-popup-header" id="cardAiHeader">
+    <div class="card-ai-popup-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span id="cardAiTitle">AI 对话</span>
+    </div>
+    <button class="card-ai-popup-close" id="cardAiClose">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="card-ai-popup-body" id="cardAiBody"></div>
+  <div class="card-ai-popup-footer">
+    <div class="card-ai-input-wrap">
+      <input type="text" id="cardAiInput" placeholder="追问这张卡片…"/>
+      <button id="cardAiSend" data-i18n="card-ai-send">发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- DISCOVER SUGGESTIONS POPUP -->
+<div class="discover-popup" id="discoverPopup">
+  <div class="discover-header">
+    <h4 data-i18n="discover-title">发现关系 Discover</h4>
+    <button class="discover-close" id="discoverClose">&times;</button>
+  </div>
+  <div class="discover-body" id="discoverBody"></div>
+  <div class="discover-footer">
+    <button id="discoverAcceptAll" data-i18n="discover-accept-all">全部接受</button>
+    <button id="discoverClose2" data-i18n="btn-cancel">取消</button>
+  </div>
+</div>
+
+<!-- GRAVITY KEYWORD WALL -->
+<div class="gravity-wall" id="gravityWall"></div>
+
+</body>
+</html>
