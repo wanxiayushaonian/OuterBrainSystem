@@ -1,6 +1,7 @@
 """Chat API endpoints using provider-neutral runtime."""
 import os
 import json
+import logging
 from dataclasses import asdict
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -15,6 +16,8 @@ from src.core import (
     CanvasContext,
     StreamChunk
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -142,7 +145,8 @@ async def stream_chat_response(
         await runtime.cleanup()
 
     except Exception as e:
-        yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+        logger.exception("Error in stream_chat_response for session %s", session_id)
+        yield f"data: {json.dumps({'type': 'error', 'error': 'Internal server error'})}\n\n"
 
 
 @router.post("/stream")
@@ -169,20 +173,22 @@ async def chat_stream(request: ChatRequest):
         viewport=ctx.get("viewport", {})
     )
 
-    # Convert to old CanvasContext format for backward compatibility
-    # Use core_cards (full content) for now
-    # TODO: Update system prompt to include peripheral_cards as index
+    # Convert to runtime CanvasContext with peripheral cards
     canvas_context = CanvasContext(
         cards=hybrid_context.core_cards,
         connections=hybrid_context.connections,
         groups=hybrid_context.groups,
-        active_labels=hybrid_context.active_labels
+        active_labels=hybrid_context.active_labels,
+        peripheral_cards=[asdict(p) for p in hybrid_context.peripheral_cards]
     )
 
     # Log context stats for monitoring
-    print(f"Context loaded: {len(hybrid_context.core_cards)} core cards, "
-          f"{len(hybrid_context.peripheral_cards)} peripheral cards, "
-          f"{hybrid_context.total_cards} total")
+    logger.info(
+        "Context loaded: %d core cards, %d peripheral cards, %d total",
+        len(hybrid_context.core_cards),
+        len(hybrid_context.peripheral_cards),
+        hybrid_context.total_cards
+    )
 
     return StreamingResponse(
         stream_chat_response(

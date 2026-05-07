@@ -1,19 +1,19 @@
 """Tests for Context Manager."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from core.context_manager import ContextManager
-from core.context_types import CanvasContext
+from src.core.context_manager import ContextManager
+from src.core.context_types import HybridCanvasContext
 
 
 def test_filter_recent_cards():
     """Test filtering cards by recency."""
     manager = ContextManager()
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     cards = [
         {"id": 1, "text": "Recent", "updated_at": now.isoformat()},
         {"id": 2, "text": "Old", "updated_at": (now - timedelta(hours=2)).isoformat()},
@@ -83,7 +83,7 @@ def test_load_context_from_state():
     """Test loading context from space state."""
     manager = ContextManager()
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     state = {
         "cards": [
             {"id": 1, "text": "Recent card", "status": "conclusion", "updated_at": now.isoformat()},
@@ -96,7 +96,7 @@ def test_load_context_from_state():
 
     context = manager.load_context_from_state(state, viewport={})
 
-    assert isinstance(context, CanvasContext)
+    assert isinstance(context, HybridCanvasContext)
     assert context.total_cards == 3
     # Core should include recent cards and conclusions
     assert len(context.core_cards) >= 1

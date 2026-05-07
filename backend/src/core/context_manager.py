@@ -1,7 +1,7 @@
 """Context Manager for hybrid loading strategy."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
-from src.core.context_types import CanvasContext, CardIndex
+from src.core.context_types import HybridCanvasContext, CardIndex
 
 
 class ContextManager:
@@ -13,7 +13,7 @@ class ContextManager:
 
     def _filter_recent_cards(self, cards: List[Dict], hours: int) -> List[Dict]:
         """Filter cards modified in last N hours."""
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         recent = []
 
         for card in cards:
@@ -21,6 +21,8 @@ class ContextManager:
             if updated_at_str:
                 try:
                     updated_at = datetime.fromisoformat(updated_at_str)
+                    if updated_at.tzinfo is None:
+                        updated_at = updated_at.replace(tzinfo=timezone.utc)
                     if updated_at > cutoff:
                         recent.append(card)
                 except (ValueError, TypeError):
@@ -51,7 +53,7 @@ class ContextManager:
     def _create_card_index(self, card: Dict) -> CardIndex:
         """Create lightweight card index from full card."""
         return CardIndex(
-            id=card["id"],
+            id=card.get("id", 0),
             title=card.get("text", "")[:100],  # Truncate to 100 chars
             status=card.get("status", "")
         )
@@ -60,7 +62,7 @@ class ContextManager:
         self,
         state: Dict[str, Any],
         viewport: Dict[str, Any]
-    ) -> CanvasContext:
+    ) -> HybridCanvasContext:
         """Load canvas context from space state with hybrid strategy.
 
         Args:
@@ -68,7 +70,7 @@ class ContextManager:
             viewport: Frontend viewport info (x, y, width, height)
 
         Returns:
-            CanvasContext with core and peripheral cards
+            HybridCanvasContext with core and peripheral cards
         """
         cards = state.get("cards", [])
 
@@ -86,23 +88,28 @@ class ContextManager:
         )
 
         # 2. Load peripheral cards (index only)
-        core_ids = {c["id"] for c in core_cards}
+        core_ids = {c.get("id") for c in core_cards if c.get("id") is not None}
         peripheral_cards = [
             self._create_card_index(c)
             for c in cards
-            if c["id"] not in core_ids
+            if c.get("id") is not None and c["id"] not in core_ids
         ]
 
         # 3. Load connections and groups
         connections = state.get("connections", [])
         groups = state.get("groups", [])
 
-        return CanvasContext(
+        # 4. Load active labels from state (with defaults)
+        active_labels = state.get("active_labels", [
+            "supports", "contradicts", "extends", "questions", "relates"
+        ])
+
+        return HybridCanvasContext(
             core_cards=core_cards,
             peripheral_cards=peripheral_cards,
             connections=connections,
             groups=groups,
-            active_labels=["supports", "contradicts", "extends", "questions", "relates"],
+            active_labels=active_labels,
             total_cards=len(cards),
-            last_updated=datetime.now()
+            last_updated=datetime.now(timezone.utc)
         )

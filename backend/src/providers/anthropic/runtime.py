@@ -196,7 +196,8 @@ class AnthropicRuntime(ChatRuntime):
 
         return anthropic_messages
 
-    def _build_system_prompt(self, context: CanvasContext) -> str:
+    @staticmethod
+    def _build_system_prompt(context: CanvasContext) -> str:
         """Build system prompt with full canvas context."""
         # Status icons
         status_icons = {
@@ -206,11 +207,15 @@ class AnthropicRuntime(ChatRuntime):
             "conclusion": "🎯"
         }
 
+        def _wrap(text: str) -> str:
+            """Wrap user content to prevent prompt injection."""
+            return f"<content>{text}</content>"
+
         # Build cards description
         cards_desc = []
         for card in context.cards:
             icon = status_icons.get(card.get("status", ""), "⚪")
-            cards_desc.append(f"  {icon} [ID:{card['id']}] {card['text']}")
+            cards_desc.append(f"  {icon} [ID:{card['id']}] {_wrap(card['text'])}")
         cards_section = "\n".join(cards_desc) if cards_desc else "  (空)"
 
         # Build connections description
@@ -224,11 +229,18 @@ class AnthropicRuntime(ChatRuntime):
         groups_desc = []
         for group in context.groups:
             card_ids = ", ".join(str(cid) for cid in group.get("card_ids", []))
-            groups_desc.append(f"  {group.get('name', '未命名')} (卡片: {card_ids})")
+            groups_desc.append(f"  {_wrap(group.get('name', '未命名'))} (卡片: {card_ids})")
         groups_section = "\n".join(groups_desc) if groups_desc else "  (无)"
 
         # Labels
         labels_section = "\n".join(f"  - {l}" for l in context.active_labels) if context.active_labels else "  (无)"
+
+        # Build peripheral cards index
+        peripheral_desc = []
+        if context.peripheral_cards:
+            for p in context.peripheral_cards:
+                peripheral_desc.append(f"  📎 [ID:{p['id']}] {_wrap(p['title'])} ({p['status']})")
+        peripheral_section = "\n".join(peripheral_desc) if peripheral_desc else "  (无)"
 
         return f"""你是一个思维链路管理助手。用户正在使用画布来组织思维碎片。
 
@@ -237,8 +249,11 @@ class AnthropicRuntime(ChatRuntime):
 ### 卡片 ({len(context.cards)} 个，核心区域)
 {cards_section}
 
-注意：系统使用混合加载策略。上面显示的是核心区域卡片（最近修改、结论卡片等）。
-如果需要查看其他卡片的详细内容，可以使用 get_card_detail 工具。
+### 外围卡片索引 ({len(context.peripheral_cards or [])} 个)
+{peripheral_section}
+
+注意：系统使用混合加载策略。核心区域显示完整内容（最近修改、结论卡片等）。
+外围卡片仅显示索引。如需查看外围卡片的详细内容，使用 get_card_detail 工具。
 
 ### 连接 ({len(context.connections)} 个)
 {connections_section}

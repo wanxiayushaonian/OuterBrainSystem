@@ -13,7 +13,7 @@ class CardIndex:
 
 
 @dataclass
-class CanvasContext:
+class HybridCanvasContext:
     """Canvas context with hybrid loading strategy.
 
     Core cards are loaded with full content (text, metadata).
