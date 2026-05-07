@@ -1,7 +1,7 @@
 """Context Manager for hybrid loading strategy."""
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
-from core.context_types import CanvasContext, CardIndex
+from src.core.context_types import CanvasContext, CardIndex
 
 
 class ContextManager:
