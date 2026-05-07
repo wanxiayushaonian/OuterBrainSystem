@@ -1,0 +1,133 @@
+/* ═══════════════════════════════════════════════════════
+   Default Card Styles (Note and Conclusion)
+   ═══════════════════════════════════════════════════════ */
+
+/* Note Card */
+.note-card {
+  padding: 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.note-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.note-text {
+  font-size: 14px;
+  color: #495057;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.note-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.note-keyword {
+  display: inline-block;
+  padding: 3px 8px;
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #1976d2;
+}
+
+/* Conclusion Card */
+.conclusion-card {
+  padding: 12px;
+  background: #fff8e1;
+  border-radius: 8px;
+  border-left: 4px solid #ffc107;
+  font-size: 14px;
+}
+
+.conclusion-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f57f17;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.conclusion-summary {
+  font-size: 14px;
+  color: #5d4037;
+  line-height: 1.6;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.conclusion-chain {
+  padding: 8px;
+  background: white;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.chain-label {
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.chain-ids {
+  color: #f39c12;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .note-card {
+    background: #34495e;
+  }
+
+  .note-title {
+    color: #ecf0f1;
+  }
+
+  .note-text {
+    color: #bdc3c7;
+  }
+
+  .note-keyword {
+    background: #2c3e50;
+    border-color: #3498db;
+    color: #5dade2;
+  }
+
+  .conclusion-card {
+    background: #3d3d1f;
+    border-left-color: #f39c12;
+  }
+
+  .conclusion-title {
+    color: #f39c12;
+  }
+
+  .conclusion-summary {
+    color: #f4d03f;
+  }
+
+  .conclusion-chain {
+    background: #2c3e50;
+  }
+
+  .chain-label {
+    color: #95a5a6;
+  }
+
+  .chain-ids {
+    color: #f39c12;
+  }
+}

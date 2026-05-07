@@ -4,7 +4,6 @@
 // ═══════════════════════════════════════════════════════
 import type { Card } from '../../core/types/types';
 import { state, scheduleSave } from '../../core/types/state';
-import { renderCanvas } from '../canvas/renderer';
 
 export interface DistillationMetadata {
   original_text: string;

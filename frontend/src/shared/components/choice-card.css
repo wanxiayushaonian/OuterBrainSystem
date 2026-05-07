@@ -1,0 +1,292 @@
+/* ═══════════════════════════════════════════════════════
+   Choice Card Styles
+   ═══════════════════════════════════════════════════════ */
+
+.choice-card {
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.choice-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+/* Context */
+.choice-context {
+  margin-bottom: 12px;
+  padding: 10px;
+  background: white;
+  border-left: 3px solid #9b59b6;
+  border-radius: 4px;
+}
+
+.context-label {
+  font-size: 12px;
+  color: #7f8c8d;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.context-text {
+  font-size: 13px;
+  color: #2c3e50;
+  line-height: 1.5;
+}
+
+/* Options */
+.choice-options {
+  margin-bottom: 12px;
+}
+
+.choice-option {
+  padding: 12px;
+  background: white;
+  border: 2px solid #dee2e6;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.choice-option:hover {
+  border-color: #9b59b6;
+  box-shadow: 0 2px 4px rgba(155, 89, 182, 0.1);
+}
+
+.choice-option.selected {
+  border-color: #9b59b6;
+  background: #f4ecf7;
+}
+
+.option-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.option-radio {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.option-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2c3e50;
+  flex: 1;
+}
+
+.option-score {
+  padding: 2px 8px;
+  background: #9b59b6;
+  color: white;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.option-description {
+  font-size: 13px;
+  color: #495057;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  margin-left: 28px;
+}
+
+.option-pros,
+.option-cons {
+  margin-left: 28px;
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.option-pros {
+  background: #e8f5e9;
+}
+
+.option-cons {
+  background: #ffebee;
+}
+
+.pros-label,
+.cons-label {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.pros-label {
+  color: #27ae60;
+}
+
+.cons-label {
+  color: #e74c3c;
+}
+
+.pros-list,
+.cons-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pros-list li {
+  color: #27ae60;
+}
+
+.cons-list li {
+  color: #e74c3c;
+}
+
+/* Recommendation */
+.choice-recommendation {
+  padding: 12px;
+  background: #fff9e6;
+  border-radius: 6px;
+  border-left: 3px solid #f39c12;
+  margin-bottom: 12px;
+}
+
+.recommendation-label {
+  font-size: 12px;
+  color: #d68910;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.recommendation-text {
+  font-size: 14px;
+  color: #7d6608;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+/* Reasoning */
+.choice-reasoning {
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: white;
+}
+
+.choice-reasoning summary {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #6c757d;
+  font-weight: 500;
+  user-select: none;
+}
+
+.choice-reasoning summary:hover {
+  background: #f8f9fa;
+}
+
+.reasoning-text {
+  padding: 12px;
+  border-top: 1px solid #dee2e6;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #495057;
+  font-style: italic;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .choice-card {
+    background: #2c3e50;
+  }
+
+  .choice-title {
+    color: #ecf0f1;
+  }
+
+  .context-label,
+  .choice-reasoning summary {
+    color: #95a5a6;
+  }
+
+  .choice-context,
+  .choice-option {
+    background: #34495e;
+    border-color: #4a5f7f;
+  }
+
+  .context-text {
+    color: #ecf0f1;
+  }
+
+  .choice-option:hover {
+    border-color: #9b59b6;
+  }
+
+  .choice-option.selected {
+    border-color: #9b59b6;
+    background: #3d2f4a;
+  }
+
+  .option-name {
+    color: #ecf0f1;
+  }
+
+  .option-description {
+    color: #bdc3c7;
+  }
+
+  .option-pros {
+    background: #2d4a3e;
+  }
+
+  .option-cons {
+    background: #4a2d2d;
+  }
+
+  .pros-label {
+    color: #2ecc71;
+  }
+
+  .cons-label {
+    color: #e74c3c;
+  }
+
+  .pros-list li {
+    color: #2ecc71;
+  }
+
+  .cons-list li {
+    color: #e74c3c;
+  }
+
+  .choice-recommendation {
+    background: #3d3d1f;
+    border-left-color: #f39c12;
+  }
+
+  .recommendation-label {
+    color: #f39c12;
+  }
+
+  .recommendation-text {
+    color: #f4d03f;
+  }
+
+  .choice-reasoning {
+    background: #34495e;
+    border-color: #4a5f7f;
+  }
+
+  .reasoning-text {
+    color: #bdc3c7;
+    border-top-color: #4a5f7f;
+  }
+}

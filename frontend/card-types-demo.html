@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Card Types Demo - Nexus</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 18px;
+      opacity: 0.9;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .card-demo {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-demo-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .card-demo-icon {
+      font-size: 24px;
+    }
+
+    .card-demo-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .card-demo-type {
+      margin-left: auto;
+      padding: 4px 12px;
+      background: #e3f2fd;
+      color: #1976d2;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .footer {
+      text-align: center;
+      color: white;
+      padding: 20px;
+      opacity: 0.8;
+    }
+  </style>
+
+  <!-- Import all card styles -->
+  <link rel="stylesheet" href="src/shared/components/distillation-card.css">
+  <link rel="stylesheet" href="src/shared/components/socratic-card.css">
+  <link rel="stylesheet" href="src/shared/components/flow-analysis-card.css">
+  <link rel="stylesheet" href="src/shared/components/choice-card.css">
+  <link rel="stylesheet" href="src/shared/components/vote-card.css">
+  <link rel="stylesheet" href="src/shared/components/card-renderer.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧠 Nexus Card Types</h1>
+      <p>外脑思维链路管理系统 - 7种卡片类型展示</p>
+    </div>
+
+    <div class="cards-grid">
+      <!-- 1. Note Card -->
+      <div class="card-demo">
+        <div class="card-demo-header">
+          <span class="card-demo-icon">📝</span>
+          <span class="card-demo-title">笔记卡片</span>
+          <span class="card-demo-type">note</span>
+        </div>
+        <div id="note-card"></div>
+      </div>
+
+      <!-- 2. Distillation Card -->
+      <div class="card-demo">
+        <div class="card-demo-header">
+          <span class="card-demo-icon">💎</span>
+          <span class="card-demo-title">提炼卡片</span>
+          <span class="card-demo-type">distillation</span>
+        </div>
+        <div id="distillation-card"></div>
+      </div>
+
+      <!-- 3. Socratic Card -->
+      <div class="card-demo">
+        <div class="card-demo-header">
+          <span class="card-demo-icon">❓</span>
+          <span class="card-demo-title">苏格拉底质疑卡片</span>
+          <span class="card-demo-type">socratic</span>
+        </div>
+        <div id="socratic-card"></div>
+      </div>
+
+      <!-- 4. Flow Analysis Card -->
+      <div class="card-demo">
+        <div class="card-demo-header">
+          <span class="card-demo-icon">🔄</span>
+          <span class="card-demo-title">流程分析卡片</span>
+          <span class="card-demo-type">flow_analysis</span>
+        </div>
+        <div id="flow-card"></div>
+      </div>
+
+      <!-- 5. Choice Card -->
+      <div class="card-demo">
+        <div class="card-demo-header">
+          <span class="card-demo-icon">🎯</span>
+          <span class="card-demo-title">选择卡片</span>
+          <span class="card-demo-type">choice</span>
+        </div>
+        <div id="choice-card"></div>
+      </div>
+
+      <!-- 6. Vote Card -->
+      <div class="card-demo">
+        <div class="card-demo-header">
+          <span class="card-demo-icon">🗳️</span>
+          <span class="card-demo-title">投票卡片</span>
+          <span class="card-demo-type">vote</span>
+        </div>
+        <div id="vote-card"></div>
+      </div>
+
+      <!-- 7. Conclusion Card -->
+      <div class="card-demo">
+        <div class="card-demo-header">
+          <span class="card-demo-icon">🎓</span>
+          <span class="card-demo-title">结论卡片</span>
+          <span class="card-demo-type">conclusion</span>
+        </div>
+        <div id="conclusion-card"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Nexus - 外脑思维链路管理系统 | Phase 2 Complete</p>
+    </div>
+  </div>
+
+  <script type="module">
+    // Mock state for demo
+    const state = {
+      cards: [],
+    };
+
+    const scheduleSave = () => console.log('State saved');
+
+    // Import card renderers
+    import { renderDistillationCard } from './src/shared/components/distillation-card.js';
+    import { renderSocraticCard } from './src/shared/components/socratic-card.js';
+    import { renderFlowAnalysisCard } from './src/shared/components/flow-analysis-card.js';
+    import { renderChoiceCard } from './src/shared/components/choice-card.js';
+    import { renderVoteCard } from './src/shared/components/vote-card.js';
+
+    // 1. Note Card
+    const noteCard = {
+      id: 1,
+      text: '深度学习模型训练需要注意的关键点',
+      type: 'note',
+      title: '深度学习训练要点',
+      keywords: ['深度学习', '模型训练', '超参数', '正则化'],
+      source: 'user',
+      time: new Date().toISOString(),
+      status: '',
+      inCanvas: true,
+      x: 0,
+      y: 0,
+    };
+
+    document.getElementById('note-card').innerHTML = `
+      <div class="note-card">
+        <div class="note-title">${noteCard.title}</div>
+        <div class="note-text">${noteCard.text}</div>
+        <div class="note-keywords">
+          ${noteCard.keywords.map(kw => `<span class="note-keyword">${kw}</span>`).join('')}
+        </div>
+      </div>
+    `;
+
+    // 2. Distillation Card
+    const distillationCard = {
+      id: 2,
+      text: 'Transformer架构的核心创新',
+      type: 'distillation',
+      metadata: {
+        original_text: 'Transformer模型通过自注意力机制实现了并行化训练，相比RNN具有更好的长距离依赖建模能力。多头注意力允许模型关注不同的表示子空间，位置编码解决了序列顺序信息的问题。',
+        extracted_keywords: ['自注意力', '并行化', '多头注意力', '位置编码', '长距离依赖'],
+        recommended_keywords: ['BERT', 'GPT', '预训练'],
+        user_selected_keywords: ['自注意力', '多头注意力'],
+        reasoning: '提炼了Transformer的三个核心创新点',
+      },
+      source: 'agent',
+      time: new Date().toISOString(),
+      status: '',
+      inCanvas: true,
+      x: 0,
+      y: 0,
+    };
+
+    renderDistillationCard(distillationCard, document.getElementById('distillation-card'));
+
+    // 3. Socratic Card
+    const socraticCard = {
+      id: 3,
+      text: '对"大模型一定比小模型好"的质疑',
+      type: 'socratic',
+      metadata: {
+        original_claim: '大模型在所有任务上都比小模型表现更好',
+        challenges: [
+          {
+            question: '大模型在资源受限的场景下是否仍然是最优选择？',
+            response: '在边缘设备或实时应用中，小模型可能更合适',
+          },
+          {
+            question: '大模型的训练成本和环境影响是否被充分考虑？',
+            response: '需要权衡性能提升与资源消耗',
+          },
+          {
+            question: '是否存在小模型通过蒸馏或微调达到相近效果的案例？',
+          },
+        ],
+        reasoning: '挑战了"大即是好"的简单假设',
+      },
+      source: 'agent',
+      time: new Date().toISOString(),
+      status: '',
+      inCanvas: true,
+      x: 0,
+      y: 0,
+    };
+
+    renderSocraticCard(socraticCard, document.getElementById('socratic-card'));
+
+    // 4. Flow Analysis Card
+    const flowCard = {
+      id: 4,
+      text: 'ML模型开发流程分析',
+      type: 'flow_analysis',
+      metadata: {
+        flow_type: '开发流程',
+        stages: [
+          {
+            name: '数据准备',
+            description: '收集、清洗和标注数据',
+            insights: ['数据质量直接影响模型上限'],
+            issues: ['标注成本高', '数据不平衡'],
+          },
+          {
+            name: '模型训练',
+            description: '选择架构、调整超参数、训练模型',
+            insights: ['预训练模型可以加速收敛'],
+            issues: ['超参数搜索空间大'],
+          },
+          {
+            name: '评估优化',
+            description: '在验证集上评估并优化模型',
+            insights: ['需要多个指标综合评估'],
+          },
+        ],
+        overall_insight: '数据质量是关键，预训练可以显著提升效率',
+        reasoning: '分析了典型的ML开发流程',
+      },
+      source: 'agent',
+      time: new Date().toISOString(),
+      status: '',
+      inCanvas: true,
+      x: 0,
+      y: 0,
+    };
+
+    renderFlowAnalysisCard(flowCard, document.getElementById('flow-card'));
+
+    // 5. Choice Card
+    const choiceCard = {
+      id: 5,
+      text: '选择深度学习框架',
+      type: 'choice',
+      metadata: {
+        context: '为新项目选择合适的深度学习框架',
+        options: [
+          {
+            name: 'PyTorch',
+            description: '动态计算图，灵活易用',
+            pros: ['研究友好', '社区活跃', '调试方便'],
+            cons: ['部署相对复杂', '移动端支持较弱'],
+            score: 9,
+          },
+          {
+            name: 'TensorFlow',
+            description: '静态计算图，生产就绪',
+            pros: ['部署成熟', 'TensorFlow Lite支持移动端', '工业界广泛使用'],
+            cons: ['学习曲线陡峭', '调试困难'],
+            score: 8,
+          },
+          {
+            name: 'JAX',
+            description: '函数式编程，高性能',
+            pros: ['自动微分强大', '性能优秀', '适合研究'],
+            cons: ['生态较小', '学习成本高'],
+            score: 7,
+          },
+        ],
+        recommendation: '如果是研究项目，推荐PyTorch；如果需要生产部署，考虑TensorFlow',
+        reasoning: '基于项目需求和团队经验进行选择',
+      },
+      source: 'agent',
+      time: new Date().toISOString(),
+      status: '',
+      inCanvas: true,
+      x: 0,
+      y: 0,
+    };
+
+    renderChoiceCard(choiceCard, document.getElementById('choice-card'));
+
+    // 6. Vote Card
+    const voteCard = {
+      id: 6,
+      text: '下一步研究方向投票',
+      type: 'vote',
+      metadata: {
+        question: '团队下一步应该重点研究哪个方向？',
+        options: [
+          { id: 'opt1', text: '多模态大模型', votes: 5 },
+          { id: 'opt2', text: '模型压缩与加速', votes: 3 },
+          { id: 'opt3', text: '强化学习应用', votes: 2 },
+          { id: 'opt4', text: '可解释性研究', votes: 4 },
+        ],
+        allow_multiple: false,
+        user_votes: [],
+        total_voters: 14,
+        reasoning: '收集团队对研究方向的偏好',
+      },
+      source: 'agent',
+      time: new Date().toISOString(),
+      status: '',
+      inCanvas: true,
+      x: 0,
+      y: 0,
+    };
+
+    renderVoteCard(voteCard, document.getElementById('vote-card'));
+
+    // 7. Conclusion Card
+    const conclusionCard = {
+      id: 7,
+      text: 'Transformer研究总结',
+      type: 'conclusion',
+      summary: '通过对多篇论文的分析，Transformer的核心优势在于自注意力机制和并行化能力，但在长序列处理和计算效率上仍有改进空间。未来方向包括稀疏注意力、线性复杂度变体等。',
+      chainIds: [2, 3, 4],
+      source: 'agent',
+      time: new Date().toISOString(),
+      status: 'conclusion',
+      inCanvas: true,
+      x: 0,
+      y: 0,
+    };
+
+    document.getElementById('conclusion-card').innerHTML = `
+      <div class="conclusion-card">
+        <div class="conclusion-title">${conclusionCard.text}</div>
+        <div class="conclusion-summary">${conclusionCard.summary}</div>
+        <div class="conclusion-chain">
+          <span class="chain-label">关联卡片：</span>
+          <span class="chain-ids">${conclusionCard.chainIds.join(', ')}</span>
+        </div>
+      </div>
+    `;
+  </script>
+</body>
+</html>
