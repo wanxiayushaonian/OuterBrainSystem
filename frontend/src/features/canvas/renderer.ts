@@ -275,6 +275,7 @@ export function renderCanvas(): void {
           <span class="group-toggle" data-group-id="${group.id}">▸</span>
           <span class="group-name">${escapeHtml(group.name)}</span>
           <span class="group-count">${groupCards.length}</span>
+          <span class="group-lock${group.locked ? ' locked' : ''}" data-group-id="${group.id}" title="${group.locked ? '解锁：允许卡片独立移动' : '锁定：卡片作为整体移动'}">${group.locked ? '🔗' : '🔓'}</span>
         </div>
       </div>`;
       // Remove cards from rendering
@@ -300,12 +301,13 @@ export function renderCanvas(): void {
       const gw = maxX - minX + PAD * 2;
       const gh = maxY - minY + PAD * 2 + 34;
 
-      groupsHtml += `<div class="canvas-group" data-group-id="${group.id}"
+      groupsHtml += `<div class="canvas-group${group.locked ? ' group-locked' : ''}" data-group-id="${group.id}"
         style="left:${gx}px;top:${gy}px;width:${gw}px;height:${gh}px;background:${group.color}">
         <div class="group-title" data-group-id="${group.id}">
           <span class="group-toggle" data-group-id="${group.id}">▾</span>
           <span class="group-name">${escapeHtml(group.name)}</span>
           <span class="group-count">${groupCards.length}</span>
+          <span class="group-lock${group.locked ? ' locked' : ''}" data-group-id="${group.id}" title="${group.locked ? '解锁：允许卡片独立移动' : '锁定：卡片作为整体移动'}">${group.locked ? '🔗' : '🔓'}</span>
         </div>
       </div>`;
     }
@@ -383,6 +385,7 @@ export function renderCanvas(): void {
       container.innerHTML = renderWikilinks(formatCardText(c.text));
     }
   });
+  renderConnections();
 }
 
 export function renderConnections(): void {
@@ -421,7 +424,7 @@ export function renderConnections(): void {
     label.style.left = mid.mx + 'px';
     label.style.top = mid.my + 'px';
     label.style.color = color;
-    label.style.borderColor = color.replace(')', ' / 0.3)').replace('oklch(', 'oklch(');
+    label.style.borderColor = color.replace(')', ' / 0.5)').replace('oklch(', 'oklch(');
     label.dataset.connFrom = String(conn.from);
     label.dataset.connTo = String(conn.to);
     canvasInner.appendChild(label);

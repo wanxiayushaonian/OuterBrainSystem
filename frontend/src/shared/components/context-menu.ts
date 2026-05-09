@@ -101,6 +101,7 @@ export function confirmGroupModal(): void {
     cardIds: [...state.selectedCards],
     color: colors[state.groups.length % colors.length],
     collapsed: false,
+    locked: false,
   };
   state.groups.push(group);
   renderCanvas();

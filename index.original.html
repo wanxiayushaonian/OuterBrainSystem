@@ -1,0 +1,3438 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><script>(function(){
+  function makeStore(){
+    var data = {};
+    var api = {
+      getItem: function(k){ return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
+      setItem: function(k, v){ data[k] = String(v); },
+      removeItem: function(k){ delete data[k]; },
+      clear: function(){ data = {}; },
+      key: function(i){ return Object.keys(data)[i] || null; }
+    };
+    Object.defineProperty(api, 'length', { get: function(){ return Object.keys(data).length; } });
+    return api;
+  }
+  function tryShim(name){
+    var works = false;
+    try { works = !!window[name] && typeof window[name].getItem === 'function'; void window[name].length; }
+    catch (_) { works = false; }
+    if (works) return;
+    try { Object.defineProperty(window, name, { configurable: true, value: makeStore() }); }
+    catch (_) { try { window[name] = makeStore(); } catch (__) {} }
+  }
+  tryShim('localStorage');
+  tryShim('sessionStorage');
+})();</script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Nexus — 外脑思维链路管理系统</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   Modern Minimal Direction — Linear / Vercel
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg: oklch(99% 0.002 240);
+  --surface: oklch(100% 0 0);
+  --fg: oklch(18% 0.012 250);
+  --muted: oklch(54% 0.012 250);
+  --border: oklch(92% 0.005 250);
+  --accent: oklch(58% 0.18 255);
+  --accent-light: oklch(92% 0.04 255);
+  --accent-dim: oklch(48% 0.12 255);
+  --danger: oklch(55% 0.2 25);
+  --success: oklch(55% 0.16 145);
+  --warning: oklch(65% 0.15 75);
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --radius: 8px;
+  --radius-sm: 5px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.04);
+  --shadow-md: 0 4px 12px oklch(0% 0 0 / 0.06);
+  --shadow-lg: 0 8px 30px oklch(0% 0 0 / 0.08);
+  --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* ── Global scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(72% 0.01 250 / 0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(60% 0.02 250 / 0.5); }
+::-webkit-scrollbar-corner { background: transparent; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.5 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── App Shell ── */
+.app {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  grid-template-rows: 48px 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Top Bar ── */
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  z-index: 100;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-brand {
+  font: 600 15px/1 var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  display: flex; align-items: center; gap: 6px;
+}
+.topbar-brand svg { width: 18px; height: 18px; }
+.topbar-sep { width: 1px; height: 20px; background: var(--border); }
+.topbar-nav { display: flex; gap: 2px; }
+.topbar-nav button {
+  background: none; border: none; cursor: pointer;
+  font: 12px/1 var(--font-body); color: var(--muted);
+  padding: 6px 10px; border-radius: var(--radius-sm);
+  transition: background var(--transition), color var(--transition);
+}
+.topbar-nav button:hover { background: var(--border); color: var(--fg); }
+.topbar-nav button.active { background: var(--accent-light); color: var(--accent); }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.topbar-kbd {
+  font: 10px/1 var(--font-mono);
+  color: var(--muted);
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+}
+.topbar-btn {
+  background: none; border: 1px solid var(--border); cursor: pointer;
+  font: 12px/1 var(--font-body); color: var(--fg);
+  padding: 6px 12px; border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.topbar-btn:hover { border-color: var(--accent); color: var(--accent); }
+.topbar-btn.primary {
+  background: var(--accent); border-color: var(--accent);
+  color: white;
+}
+.topbar-btn.primary:hover { background: var(--accent-dim); }
+
+/* ── Sidebar (Inbox) ── */
+.sidebar {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-header {
+  padding: 12px 14px 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.sidebar-title {
+  font: 600 12px/1 var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.sidebar-count {
+  font: 500 11px/1 var(--font-mono);
+  color: var(--muted);
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+.sidebar-search {
+  margin: 0 10px 8px;
+  flex-shrink: 0;
+}
+.sidebar-search input {
+  width: 100%;
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px 7px 30px;
+  outline: none;
+  transition: border-color var(--transition);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%23999' stroke-width='1.5'%3E%3Ccircle cx='6' cy='6' r='4.5'/%3E%3Cpath d='M9.5 9.5L13 13'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 9px center;
+}
+.sidebar-search input:focus { border-color: var(--accent); }
+.sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 6px 8px;
+}
+.sidebar-list::-webkit-scrollbar { width: 5px; }
+.sidebar-list::-webkit-scrollbar-thumb { background: oklch(72% 0.01 250 / 0.3); border-radius: 2.5px; }
+.sidebar-list::-webkit-scrollbar-thumb:hover { background: oklch(60% 0.02 250 / 0.5); }
+
+/* ── Inbox Card ── */
+.inbox-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  cursor: grab;
+  transition: all var(--transition);
+  user-select: none;
+}
+.inbox-card:hover { border-color: var(--accent); box-shadow: var(--shadow-sm); }
+.inbox-card.dragging { opacity: 0.4; transform: scale(0.96); }
+.inbox-card-source {
+  font: 10px/1 var(--font-mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  display: flex; align-items: center; gap: 4px;
+}
+.inbox-card-source svg { width: 12px; height: 12px; stroke: var(--muted); }
+.inbox-card-text {
+  font: 13px/1.45 var(--font-body);
+  color: var(--fg);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.inbox-card-meta {
+  font: 10px/1 var(--font-mono);
+  color: var(--muted);
+  margin-top: 6px;
+}
+.inbox-card-status {
+  position: absolute;
+  top: 10px; right: 10px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.inbox-card-status.pending { background: var(--warning); }
+.inbox-card-status.verified { background: var(--success); }
+
+/* ── Canvas Area ── */
+.canvas-area {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle, var(--border) 0.8px, transparent 0.8px);
+  background-size: 24px 24px;
+  background-color: var(--bg);
+}
+.canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 6000px; height: 6000px;
+  transform-origin: 0 0;
+}
+.canvas-inner {
+  position: relative;
+  width: 100%; height: 100%;
+}
+
+/* ── Canvas Card ── */
+.canvas-card {
+  position: absolute;
+  width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  cursor: move;
+  transition: box-shadow var(--transition), border-color var(--transition);
+  user-select: none;
+  z-index: 10;
+}
+.canvas-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+.canvas-card:hover .conn-port { opacity: 1; }
+.conn-port {
+  position: absolute;
+  width: 10px; height: 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--muted);
+  border-radius: 50%;
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity 150ms, border-color 150ms, background 150ms;
+  z-index: 20;
+}
+.conn-port:hover { border-color: var(--accent); background: var(--accent-light); }
+.conn-port.top { top: -5px; left: 50%; transform: translateX(-50%); }
+.conn-port.right { right: -5px; top: 50%; transform: translateY(-50%); }
+.conn-port.bottom { bottom: -5px; left: 50%; transform: translateX(-50%); }
+.conn-port.left { left: -5px; top: 50%; transform: translateY(-50%); }
+.canvas-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light), var(--shadow-md);
+}
+.canvas-card .card-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.canvas-card .card-source {
+  font: 10px/1 var(--font-mono);
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.canvas-card .card-body {
+  font: 13px/1.5 var(--font-body);
+  color: var(--fg);
+}
+.canvas-card .card-status-tag {
+  display: inline-block;
+  font: 10px/1 var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-top: 8px;
+}
+.card-status-tag.pending { background: oklch(92% 0.04 75); color: oklch(45% 0.12 75); }
+.card-status-tag.verified { background: oklch(92% 0.04 145); color: oklch(40% 0.12 145); }
+.card-status-tag.conclusion {
+  background: oklch(92% 0.06 85);
+  color: oklch(45% 0.15 85);
+  border: 1px solid oklch(78% 0.1 85);
+}
+
+/* ── Conclusion Card (special) ── */
+.canvas-card.conclusion-card {
+  border: 2px solid oklch(75% 0.12 85);
+  background: linear-gradient(135deg, var(--surface), oklch(97% 0.01 85));
+  box-shadow: 0 0 0 4px oklch(90% 0.06 85 / 0.3);
+  width: 260px;
+}
+.conclusion-card .card-summary {
+  font: 12px/1.55 var(--font-body);
+  color: var(--muted);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.conclusion-card .card-expand {
+  font: 11px/1 var(--font-body);
+  color: var(--accent);
+  cursor: pointer;
+  margin-top: 6px;
+  display: inline-block;
+}
+
+/* ── Connections SVG ── */
+.connections-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+.connections-svg line {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  opacity: 0.5;
+  stroke-linecap: round;
+}
+.connections-svg line.active { stroke: var(--accent); opacity: 1; }
+.connections-svg line.temp-line { stroke: var(--accent); opacity: 0.4; stroke-dasharray: 6 4; }
+.conn-label {
+  position: absolute;
+  font: 11px/1 var(--font-body);
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+  z-index: 15;
+  transition: all var(--transition);
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+}
+.conn-label:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+/* ── Canvas Controls (zoom, fit) ── */
+.canvas-controls {
+  position: absolute;
+  bottom: 16px; right: 16px;
+  display: flex; gap: 4px;
+  z-index: 50;
+}
+.canvas-controls button {
+  width: 32px; height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: 14px/1 var(--font-body);
+  color: var(--fg);
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.canvas-controls button:hover { border-color: var(--accent); color: var(--accent); }
+.zoom-display {
+  font: 11px/1 var(--font-mono);
+  color: var(--muted);
+  display: flex; align-items: center;
+  padding: 0 6px;
+  min-width: 42px;
+  justify-content: center;
+}
+
+/* ── GitGraph Panel ── */
+.gitgraph-fab {
+  position: fixed;
+  bottom: 56px;
+  right: 20px;
+  width: 44px; height: 44px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 300;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-md);
+}
+.gitgraph-fab:hover { border-color: var(--accent); box-shadow: var(--shadow-lg); }
+.gitgraph-fab svg { width: 20px; height: 20px; color: var(--fg); }
+.gitgraph-fab .fab-badge {
+  position: absolute;
+  top: -2px; right: -2px;
+  font: 9px/1 var(--font-mono);
+  color: white;
+  background: var(--accent);
+  border-radius: 8px;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+}
+.gitgraph-panel {
+  position: fixed;
+  bottom: 108px;
+  right: 20px;
+  width: 280px;
+  max-height: calc(100vh - 120px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transform: translateY(10px) scale(0.97);
+  pointer-events: none;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.gitgraph-panel.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.gitgraph-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.gitgraph-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gitgraph-header h3 {
+  font: 600 13px/1 var(--font-display);
+  color: var(--fg);
+}
+.gitgraph-branch-tag {
+  font: 600 10px/1 var(--font-mono);
+  color: var(--accent);
+  background: var(--accent-light);
+  border: 1px solid oklch(88% 0.04 255);
+  border-radius: 10px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+}
+.gitgraph-branch-tag:hover { background: oklch(88% 0.06 255); }
+.gitgraph-header-actions {
+  display: flex;
+  gap: 4px;
+}
+.gitgraph-header-actions button {
+  background: none; border: 1px solid var(--border); cursor: pointer;
+  width: 28px; height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted);
+  transition: all var(--transition);
+}
+.gitgraph-header-actions button:hover { border-color: var(--accent); color: var(--accent); }
+.gitgraph-header-actions button svg { width: 14px; height: 14px; }
+.gitgraph-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 16px;
+}
+.gitgraph-svg { display: block; }
+.gitgraph-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.gitgraph-info {
+  font: 11px/1 var(--font-body);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gitgraph-info svg { width: 12px; height: 12px; }
+.gitgraph-footer-actions {
+  display: flex;
+  gap: 6px;
+}
+.gitgraph-footer-actions button {
+  background: none; border: 1px solid var(--border); cursor: pointer;
+  font: 11px/1 var(--font-body); color: var(--fg);
+  padding: 5px 10px; border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  display: flex; align-items: center; gap: 4px;
+}
+.gitgraph-footer-actions button:hover { border-color: var(--accent); color: var(--accent); }
+.gitgraph-footer-actions button svg { width: 12px; height: 12px; }
+.gitgraph-tooltip {
+  position: fixed;
+  background: var(--fg);
+  color: var(--bg);
+  font: 11px/1.4 var(--font-body);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  z-index: 400;
+  max-width: 220px;
+  opacity: 0;
+  transition: opacity 100ms;
+  white-space: nowrap;
+}
+.gitgraph-tooltip.show { opacity: 1; }
+/* Branch dropdown in graph header */
+.gitgraph-branch-dropdown {
+  position: absolute;
+  top: 0;
+  left: -8px;
+  height: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 160px;
+  z-index: 350;
+  display: none;
+  flex-direction: column;
+  transform: translateX(-100%);
+}
+.gitgraph-branch-dropdown.show { display: flex; }
+.gitgraph-branch-dropdown .branch-list {
+  overflow-y: auto;
+  padding: 6px 4px;
+  flex: 1;
+  min-height: 0;
+}
+.gitgraph-branch-dropdown .branch-list-title {
+  font: 600 11px/1 var(--font-display);
+  color: var(--muted);
+  padding: 6px 10px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.gitgraph-branch-dropdown .branch-actions {
+  border-top: 1px solid var(--border);
+  padding: 4px;
+}
+.gitgraph-branch-dropdown .branch-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  transition: background var(--transition);
+}
+.gitgraph-branch-dropdown .branch-menu-item:hover { background: var(--accent-light); }
+.gitgraph-branch-dropdown .branch-menu-item.active { background: var(--accent-light); font-weight: 600; }
+.gitgraph-branch-dropdown .branch-menu-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.gitgraph-branch-dropdown .branch-menu-name { flex: 1; }
+.gitgraph-branch-dropdown .branch-menu-count {
+  font: 10px/1 var(--font-mono);
+  color: var(--muted);
+}
+.gitgraph-branch-dropdown .branch-menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ── AI Panel ── */
+.ai-panel {
+  position: fixed;
+  top: 48px; right: 0;
+  width: 380px;
+  height: calc(100vh - 100px);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 20px oklch(0% 0 0 / 0.04);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ai-panel.open { transform: translateX(0); }
+.ai-panel-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.ai-panel-title {
+  font: 600 13px/1 var(--font-display);
+  color: var(--fg);
+  display: flex; align-items: center; gap: 6px;
+}
+.ai-panel-title svg { width: 16px; height: 16px; }
+.ai-panel-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.ai-panel-close:hover { background: var(--border); color: var(--fg); }
+.ai-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ai-msg {
+  font: 13px/1.55 var(--font-body);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  max-width: 92%;
+}
+.ai-msg.system {
+  background: var(--bg);
+  color: var(--muted);
+  align-self: flex-start;
+  font-size: 12px;
+}
+.ai-msg.ai {
+  background: var(--accent-light);
+  color: var(--fg);
+  align-self: flex-start;
+  border: 1px solid oklch(88% 0.04 255);
+}
+.ai-msg.ai strong { color: var(--accent); }
+.ai-msg .msg-action {
+  display: inline-flex; align-items: center; gap: 4px;
+  font: 11px/1 var(--font-body);
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.ai-msg .msg-action:hover { background: var(--accent); color: white; }
+.ai-panel-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ai-input-wrap {
+  display: flex; gap: 8px;
+}
+.ai-input-wrap input {
+  flex: 1;
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.ai-input-wrap input:focus { border-color: var(--accent); }
+.ai-input-wrap button {
+  background: var(--accent); border: none; cursor: pointer;
+  color: white; border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font: 12px/1 var(--font-body);
+  transition: background var(--transition);
+}
+.ai-input-wrap button:hover { background: var(--accent-dim); }
+
+/* ── Card AI Chat Button ── */
+.card-ai-btn {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 24px; height: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity 150ms, border-color 150ms, background 150ms;
+  z-index: 25;
+}
+.canvas-card:hover .card-ai-btn { opacity: 1; }
+.card-ai-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+.card-ai-btn svg { width: 13px; height: 13px; stroke: var(--muted); }
+.card-ai-btn:hover svg { stroke: var(--accent); }
+
+/* ── Card AI Chat Popup (floating) ── */
+.card-ai-popup {
+  position: fixed;
+  width: 340px;
+  max-height: 440px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 350;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+.card-ai-popup.show { display: flex; }
+.card-ai-popup-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: move;
+  flex-shrink: 0;
+  background: var(--bg);
+}
+.card-ai-popup-title {
+  font: 11px/1 var(--font-mono);
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  display: flex; align-items: center; gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+}
+.card-ai-popup-title svg { width: 13px; height: 13px; stroke: var(--accent); flex-shrink: 0; }
+.card-ai-popup-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); padding: 2px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.card-ai-popup-close:hover { background: var(--border); color: var(--fg); }
+.card-ai-popup-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 160px;
+  max-height: 300px;
+}
+.card-ai-popup-body::-webkit-scrollbar { width: 5px; }
+.card-ai-popup-body::-webkit-scrollbar-thumb { background: oklch(72% 0.01 250 / 0.3); border-radius: 2.5px; }
+.card-ai-popup-body::-webkit-scrollbar-thumb:hover { background: oklch(60% 0.02 250 / 0.5); }
+.card-ai-msg {
+  font: 12px/1.5 var(--font-body);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  max-width: 95%;
+}
+.card-ai-msg.system {
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 11px;
+  align-self: flex-start;
+}
+.card-ai-msg.ai {
+  background: var(--accent-light);
+  color: var(--fg);
+  align-self: flex-start;
+  border: 1px solid oklch(88% 0.04 255);
+}
+.card-ai-msg.ai strong { color: var(--accent); font-size: 11px; }
+.card-ai-msg.user {
+  background: var(--fg);
+  color: var(--bg);
+  align-self: flex-end;
+}
+.card-ai-msg .card-ai-action {
+  display: inline-flex; align-items: center; gap: 4px;
+  font: 10px/1 var(--font-body);
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  margin-top: 6px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.card-ai-msg .card-ai-action:hover { background: var(--accent); color: white; }
+.card-ai-popup-footer {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.card-ai-input-wrap {
+  display: flex; gap: 6px;
+}
+.card-ai-input-wrap input {
+  flex: 1;
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.card-ai-input-wrap input:focus { border-color: var(--accent); }
+.card-ai-input-wrap button {
+  background: var(--accent); border: none; cursor: pointer;
+  color: white; border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  font: 11px/1 var(--font-body);
+  transition: background var(--transition);
+  white-space: nowrap;
+}
+.card-ai-input-wrap button:hover { background: var(--accent-dim); }
+
+/* ── Capture Popup ── */
+.capture-popup {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 440px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.capture-popup.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+.capture-head {
+  padding: 16px 18px 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.capture-head h3 {
+  font: 600 14px/1 var(--font-display);
+  color: var(--fg);
+  display: flex; align-items: center; gap: 6px;
+}
+.capture-head h3 svg { width: 16px; height: 16px; stroke: var(--accent); }
+.capture-head .close-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 18px;
+  padding: 2px 6px; border-radius: 4px;
+}
+.capture-head .close-btn:hover { background: var(--border); }
+.capture-body { padding: 14px 18px; }
+.capture-body textarea {
+  width: 100%;
+  min-height: 80px;
+  font: 13px/1.5 var(--font-body);
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.capture-body textarea:focus { border-color: var(--accent); }
+.capture-body textarea::placeholder { color: var(--muted); }
+.capture-footer {
+  padding: 0 18px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.capture-meta {
+  font: 10px/1 var(--font-mono);
+  color: var(--muted);
+  display: flex; align-items: center; gap: 6px;
+}
+.capture-meta svg { width: 12px; height: 12px; stroke: var(--muted); }
+.capture-submit {
+  background: var(--accent); border: none; cursor: pointer;
+  color: white; font: 12px/1 var(--font-body);
+  padding: 7px 16px; border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+.capture-submit:hover { background: var(--accent-dim); }
+
+/* ── Backdrop ── */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0% 0 0 / 0.15);
+  z-index: 400;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms;
+}
+.backdrop.open { opacity: 1; pointer-events: auto; }
+
+/* ── Context Menu ── */
+.context-menu {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 300;
+  min-width: 200px;
+  padding: 4px;
+  display: none;
+}
+.context-menu.show { display: block; }
+.context-menu-item {
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  transition: background var(--transition);
+}
+.context-menu-item:hover { background: var(--accent-light); }
+.context-menu-item svg { width: 14px; height: 14px; stroke: var(--muted); }
+.context-menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ── Selection Box ── */
+.selection-box {
+  position: absolute;
+  border: 1.5px dashed var(--accent);
+  background: oklch(58% 0.18 255 / 0.06);
+  z-index: 8;
+  pointer-events: none;
+  display: none;
+}
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  bottom: 80px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  box-shadow: var(--shadow-md);
+  z-index: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 200ms;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Version overlay ── */
+.version-overlay {
+  position: absolute;
+  top: 12px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 18px;
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  box-shadow: var(--shadow-md);
+  z-index: 60;
+  display: none;
+  align-items: center; gap: 10px;
+}
+.version-overlay.show { display: flex; }
+.version-overlay .restore-btn {
+  background: var(--accent); border: none; cursor: pointer;
+  color: white; font: 11px/1 var(--font-body);
+  padding: 5px 12px; border-radius: var(--radius-sm);
+}
+
+/* ── Rename modal ── */
+.rename-modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 20px;
+  z-index: 500;
+  width: 320px;
+  display: none;
+}
+.rename-modal.show { display: block; }
+.rename-modal h4 {
+  font: 600 13px/1 var(--font-display);
+  margin-bottom: 12px;
+}
+.rename-modal input {
+  width: 100%;
+  font: 13px/1 var(--font-body);
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  margin-bottom: 12px;
+}
+.rename-modal input:focus { border-color: var(--accent); }
+.rename-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.rename-modal-actions button {
+  font: 12px/1 var(--font-body);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  transition: all var(--transition);
+}
+.rename-modal-actions button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+
+/* ── Helper classes ── */
+.hidden { display: none !important; }
+.mono { font-family: var(--font-mono); }
+
+/* ── Tweaks Panel ── */
+.tweaks-fab {
+  position: fixed;
+  bottom: 108px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 250;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition);
+  color: var(--muted);
+}
+.tweaks-fab:hover { border-color: var(--accent); color: var(--accent); box-shadow: var(--shadow-lg); }
+.tweaks-fab svg { width: 16px; height: 16px; }
+.tweaks-panel {
+  position: fixed;
+  bottom: 152px;
+  right: 16px;
+  width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 250;
+  padding: 14px 16px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tweaks-panel.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.tweaks-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  margin: -14px -16px 10px;
+  padding: 6px 16px 4px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  transition: background var(--transition);
+}
+.tweaks-drag-handle:active { cursor: grabbing; }
+.tweaks-drag-handle:hover { background: var(--bg); }
+.tweaks-drag-handle svg { width: 20px; height: 6px; color: var(--border); }
+.tweaks-section-label {
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.tweaks-lang-group {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.tweaks-lang-group button {
+  flex: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: 11px/1 var(--font-body);
+  color: var(--muted);
+  padding: 6px 0;
+  transition: all var(--transition);
+  text-align: center;
+}
+.tweaks-lang-group button:not(:last-child) { border-right: 1px solid var(--border); }
+.tweaks-lang-group button:hover { color: var(--fg); background: var(--bg); }
+.tweaks-lang-group button.active { background: var(--accent-light); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ═══ TOP BAR ═══ -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+        Nexus
+      </div>
+      <div class="topbar-sep"></div>
+      <nav class="topbar-nav">
+        <button class="active" data-i18n="nav-canvas">画布 Canvas</button>
+        <button data-i18n="nav-inbox">收件箱 Inbox</button>
+        <button data-i18n="nav-conclusions">结论 Conclusions</button>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-kbd" data-i18n="kbd-capture">Ctrl+Shift+C 捕捉</span>
+      <button class="topbar-btn" onclick="openCapture()" data-i18n="btn-capture">+ 新建捕捉</button>
+    </div>
+  </header>
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title" data-i18n="sidebar-inbox">收件箱 Inbox</span>
+      <span class="sidebar-count" id="inboxCount">5</span>
+    </div>
+    <div class="sidebar-search">
+      <input type="text" placeholder="搜索卡片…" id="searchInput" data-i18n-placeholder="search-placeholder"/>
+    </div>
+    <div class="sidebar-list" id="inboxList"></div>
+  </aside>
+
+  <!-- ═══ CANVAS ═══ -->
+  <main class="canvas-area" id="canvasArea">
+    <div class="canvas" id="canvas">
+      <svg class="connections-svg" id="connectionsSvg"></svg>
+      <div class="canvas-inner" id="canvasInner"></div>
+      <div class="selection-box" id="selectionBox"></div>
+    </div>
+
+    <!-- Version overlay -->
+    <div class="version-overlay" id="versionOverlay">
+      <span id="versionLabel" data-i18n="version-viewing">正在查看 3小时前的版本</span>
+      <button class="restore-btn" onclick="restoreVersion()" data-i18n="version-restore">回到此版本 Restore</button>
+    </div>
+
+    <!-- Canvas controls -->
+    <div class="canvas-controls">
+      <button onclick="zoomCanvas(-0.1)" title="缩小" data-i18n-title="zoom-out">−</button>
+      <span class="zoom-display" id="zoomDisplay">100%</span>
+      <button onclick="zoomCanvas(0.1)" title="放大" data-i18n-title="zoom-in">+</button>
+      <button onclick="fitCanvas()" title="适应画面" data-i18n-title="zoom-fit">⊡</button>
+    </div>
+  </main>
+
+  <!-- ═══ GITGRAPH PANEL ═══ -->
+  <button class="gitgraph-fab" id="gitgraphFab" title="版本图 Version Graph" data-i18n-title="gitgraph-fab-title">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 01-9 9"/></svg>
+    <span class="fab-badge" id="fabBadge">0</span>
+  </button>
+  <div class="gitgraph-panel" id="gitgraphPanel">
+    <div class="gitgraph-branch-dropdown" id="graphBranchDropdown"></div>
+    <div class="gitgraph-header">
+      <div class="gitgraph-header-left">
+        <h3 data-i18n="graph-title">版本图 Graph</h3>
+        <span class="gitgraph-branch-tag" id="graphBranchTag" onclick="event.stopPropagation();toggleGraphBranchDropdown()">main</span>
+      </div>
+      <div class="gitgraph-header-actions">
+        <button onclick="saveManualVersion()" title="标记版本" data-i18n-title="timeline-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        </button>
+        <button onclick="createBranchManual()" title="创建分支" data-i18n-title="timeline-branch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 01-9 9"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="gitgraph-body" id="gitgraphBody"></div>
+    <div class="gitgraph-footer">
+      <span class="gitgraph-info" id="graphInfo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="graphInfoText">当前 · 14:32</span>
+      </span>
+      <div class="gitgraph-footer-actions">
+        <button onclick="restoreVersion()" id="graphRestoreBtn" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          <span data-i18n="version-restore">恢复 Restore</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="gitgraph-tooltip" id="gitgraphTooltip"></div>
+</div>
+
+<!-- ═══ AI PANEL ═══ -->
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-panel-header">
+    <div class="ai-panel-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span data-i18n="ai-title">AI 质询 AI Inquiry</span>
+    </div>
+    <button class="ai-panel-close" onclick="closeAiPanel()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="ai-panel-body" id="aiMessages"></div>
+  <div class="ai-panel-footer">
+    <div class="ai-input-wrap">
+      <input type="text" placeholder="追问 AI…" id="aiInput" data-i18n-placeholder="ai-input-placeholder"/>
+      <button onclick="sendAiMessage()" data-i18n="ai-send">发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CAPTURE POPUP ═══ -->
+<div class="backdrop" id="backdrop" onclick="closeCapture()"></div>
+<div class="capture-popup" id="capturePopup">
+  <div class="capture-head">
+    <h3>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+      <span data-i18n="capture-title">快速捕捉 Quick Capture</span>
+    </h3>
+    <button class="close-btn" onclick="closeCapture()">×</button>
+  </div>
+  <div class="capture-body">
+    <textarea id="captureInput" placeholder="输入想法、粘贴链接、记录灵感…" data-i18n-placeholder="capture-placeholder"></textarea>
+  </div>
+  <div class="capture-footer">
+    <div class="capture-meta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      <span id="captureSource">来源: Nexus 画布 · 当前时间</span>
+    </div>
+    <button class="capture-submit" onclick="submitCapture()" data-i18n="capture-submit">存入收件箱</button>
+  </div>
+</div>
+
+<!-- ═══ CONTEXT MENU ═══ -->
+<div class="context-menu" id="contextMenu">
+  <div class="context-menu-item" onclick="contextAction('question')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    <span data-i18n="ctx-question">质询这组想法 Question</span>
+  </div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item" onclick="contextAction('conclude')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <span data-i18n="ctx-conclude">固化为结论 Conclude</span>
+  </div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item" onclick="contextAction('delete')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+    <span data-i18n="ctx-delete">删除卡片 Delete</span>
+  </div>
+</div>
+
+<!-- ═══ CONNECTION CONTEXT MENU ═══ -->
+<div class="context-menu" id="connContextMenu">
+  <div class="context-menu-item" onclick="connContextAction('cycle')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-12.28L1 10"/></svg>
+    <span data-i18n="ctx-cycle-label">切换关系 Cycle Label</span>
+  </div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item" onclick="connContextAction('delete')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+    <span data-i18n="ctx-delete-conn">删除连接 Delete Connection</span>
+  </div>
+</div>
+
+<!-- ═══ INBOX CONTEXT MENU ═══ -->
+<div class="context-menu" id="inboxContextMenu">
+  <div class="context-menu-item" onclick="inboxContextAction('toCanvas')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    <span data-i18n="ctx-to-canvas">移到画布 Move to Canvas</span>
+  </div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item" onclick="inboxContextAction('delete')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+    <span data-i18n="ctx-delete">删除卡片 Delete</span>
+  </div>
+</div>
+
+<!-- ═══ RENAME MODAL ═══ -->
+<div class="rename-modal" id="renameModal">
+  <h4 data-i18n="rename-title">命名版本 Name Version</h4>
+  <input type="text" id="renameInput" placeholder="如：确定了核心架构…" data-i18n-placeholder="rename-placeholder"/>
+  <div class="rename-modal-actions">
+    <button onclick="closeRenameModal()" data-i18n="btn-cancel">取消 Cancel</button>
+    <button class="primary" onclick="confirmRename()" data-i18n="btn-save">保存标记 Save</button>
+  </div>
+</div>
+
+<!-- ═══ BRANCH CREATION MODAL ═══ -->
+<div class="rename-modal" id="branchModal">
+  <h4 data-i18n="branch-create-title">创建分支 Create Branch</h4>
+  <input type="text" id="branchNameInput" placeholder="如：探索另一个方向…" data-i18n-placeholder="branch-create-placeholder"/>
+  <div class="rename-modal-actions">
+    <button onclick="closeBranchModal()" data-i18n="btn-cancel">取消 Cancel</button>
+    <button class="primary" onclick="confirmCreateBranch()" data-i18n="btn-create">创建 Create</button>
+  </div>
+</div>
+
+<!-- ═══ TWEAKS PANEL ═══ -->
+<button class="tweaks-fab" id="tweaksFab" onclick="toggleTweaks()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+</button>
+<div class="tweaks-panel" id="tweaksPanel">
+  <div class="tweaks-drag-handle" id="tweaksDragHandle">
+    <svg viewBox="0 0 24 6" fill="currentColor"><rect x="2" y="0" width="20" height="2" rx="1"/><rect x="2" y="4" width="20" height="2" rx="1"/></svg>
+  </div>
+  <div class="tweaks-section-label" data-i18n="tweaks-language">语言 Language</div>
+  <div class="tweaks-lang-group" id="tweaksLangGroup">
+    <button class="active" data-lang="bilingual" onclick="setLang('bilingual')">双语</button>
+    <button data-lang="zh" onclick="setLang('zh')">中文</button>
+    <button data-lang="en" onclick="setLang('en')">EN</button>
+  </div>
+</div>
+
+<!-- ═══ CARD AI CHAT POPUP ═══ -->
+<div class="card-ai-popup" id="cardAiPopup">
+  <div class="card-ai-popup-header" id="cardAiHeader">
+    <div class="card-ai-popup-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span id="cardAiTitle">AI 对话</span>
+    </div>
+    <button class="card-ai-popup-close" onclick="closeCardAiPopup()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="card-ai-popup-body" id="cardAiBody"></div>
+  <div class="card-ai-popup-footer">
+    <div class="card-ai-input-wrap">
+      <input type="text" id="cardAiInput" placeholder="追问这张卡片…"/>
+      <button onclick="sendCardAiMessage()" data-i18n="card-ai-send">发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════════ */
+const state = {
+  cards: [],
+  connections: [],
+  versions: [],
+  currentVersion: -1,
+  branches: [{ id: 0, name: 'main', color: 'oklch(58% 0.18 255)', forkFrom: -1 }],
+  currentBranch: 0,
+  nextBranchId: 1,
+  branchColors: [
+    'oklch(58% 0.18 255)',   // accent blue
+    'oklch(55% 0.16 145)',   // green
+    'oklch(60% 0.15 35)',    // warm red
+    'oklch(55% 0.14 75)',    // amber
+    'oklch(55% 0.14 300)',   // purple
+    'oklch(55% 0.12 200)',   // teal
+  ],
+  selectedCards: new Set(),
+  zoom: 1,
+  pan: { x: 0, y: 0 },
+  nextId: 1,
+  draggingCard: null,
+  dragOffset: { x: 0, y: 0 },
+  dragStartMouse: null,
+  dragStartPositions: null,
+  connecting: false,
+  connectFrom: null,
+  selectionStart: null,
+  isViewingHistory: false,
+  didDrag: false,
+};
+
+const LABELS = ['支撑 Supports', '质疑 Questions', '相关 Related', '导致 Leads to', '反对 Opposes'];
+
+/* ═══════════════════════════════════════════════════════
+   i18n — Language system
+   ═══════════════════════════════════════════════════════ */
+let currentLang = 'bilingual';
+
+const i18n = {
+  'bilingual': {
+    'kbd-capture': 'Ctrl+Shift+C 捕捉',
+    'btn-capture': '+ 新建捕捉',
+    'nav-canvas': '画布 Canvas',
+    'nav-inbox': '收件箱 Inbox',
+    'nav-conclusions': '结论 Conclusions',
+    'sidebar-inbox': '收件箱 Inbox',
+    'search-placeholder': '搜索卡片…',
+    'timeline-versions': '版本 Versions',
+    'timeline-mark': '标记版本 Mark',
+    'graph-title': '版本图 Graph',
+    'ai-title': 'AI 质询 AI Inquiry',
+    'ai-input-placeholder': '追问 AI…',
+    'ai-send': '发送 Send',
+    'capture-title': '快速捕捉 Quick Capture',
+    'capture-placeholder': '输入想法、粘贴链接、记录灵感…',
+    'capture-submit': '存入收件箱',
+    'ctx-question': '质询这组想法 Question',
+    'ctx-conclude': '固化为结论 Conclude',
+    'ctx-delete': '删除卡片 Delete',
+    'ctx-to-canvas': '移到画布 Move to Canvas',
+    'ctx-cycle-label': '切换关系 Cycle Label',
+    'ctx-delete-conn': '删除连接 Delete Connection',
+    'rename-title': '命名版本 Name Version',
+    'rename-placeholder': '如：确定了核心架构…',
+    'btn-cancel': '取消 Cancel',
+    'btn-save': '保存标记 Save',
+    'version-viewing': '正在查看 3小时前的版本',
+    'version-restore': '回到此版本 Restore',
+    // Dynamic labels
+    'label-supports': '支撑 Supports',
+    'label-questions': '质疑 Questions',
+    'label-related': '相关 Related',
+    'label-leads': '导致 Leads to',
+    'label-opposes': '反对 Opposes',
+    'status-pending': '待验证 Pending',
+    'status-verified': '已验证 Verified',
+    'status-conclusion': '结论 Conclusion',
+    'toast-card-added': '卡片已添加到画布',
+    'toast-connected': '已建立连接',
+    'toast-deleted': '已删除',
+    'toast-conn-deleted': '连接已删除',
+    'toast-captured': '已存入收件箱',
+    'toast-moved': '已移到画布',
+    'toast-restored': '已恢复到此版本',
+    'dragged-card': '移动卡片 Moved card',
+    'toast-min-cards': '请至少选择 2 张卡片',
+    'toast-conclusion-done': '结论已固化',
+    'toast-expand': '展开论证链（演示功能）',
+    'toast-version-marked': '版本已标记',
+    'ai-selected': '已选择 {n} 张卡片进行质询',
+    'ai-chain': '我理解你的逻辑链：',
+    'ai-question-btn': '+ 转为卡片',
+    'ai-core-assumption': '这条链路的核心假设是"外部系统可以弥补人类工作记忆的局限"。',
+    'ai-q1-title': '质疑点 1：',
+    'ai-q1-body': '你假设用户会在"收集"和"整理"之间切换——但如果用户只收集不整理呢？收件箱会不会变成新的信息垃圾场？',
+    'ai-q1-card': '如果用户只收集不整理，收件箱如何避免变成信息垃圾场？',
+    'ai-q2-title': '质疑点 2：',
+    'ai-q2-body': 'AI 质询需要用户先选中卡片再触发——这个"主动选择"的动作本身就是认知负担。有没有可能让 AI 主动发现思维链中的漏洞？',
+    'ai-q2-card': 'AI 是否应该主动发现思维漏洞，而非等待用户手动触发质询？',
+    'ai-q3-title': '质疑点 3：',
+    'ai-q3-body': '结论固化生成"摘要"——但摘要丢失了论证过程中的微妙差异。固化是否应该保留完整的推理路径？',
+    'ai-q3-card': '结论固化是否应该保留完整推理路径，而非仅生成摘要？',
+    'timeline-current': '当前 · {time}',
+    'version-label': '正在查看 {ago}的版本: {label}',
+    'source-capture': '来源: Nexus 画布 · {time}',
+    'source-ai': 'AI 质询',
+    'source-conclusion': '结论固化',
+    'source-nexus': 'Nexus 捕捉',
+    'expand-chain': '展开论证链 Expand chain ▾',
+    'conclusion-summary': '{n} 张卡片的综合结论',
+    'restored-label': '恢复版本 Restored: {label}',
+    'initial-state': '初始状态 Initial state',
+    'edit-card': '编辑卡片内容:',
+    'zoom-out': '缩小',
+    'zoom-in': '放大',
+    'zoom-fit': '适应画面',
+    'tweaks-language': '语言 Language',
+    'branch-rename': '重命名分支 Rename Branch',
+    'branch-list-title': '分支 Branches',
+    'branch-rename-prompt': '输入新分支名 Enter new branch name:',
+    'branch-delete': '删除分支 Delete Branch',
+    'branch-delete-confirm': '确定删除分支 "{name}"？其所有版本将丢失。Delete branch "{name}"? All versions will be lost.',
+    'toast-branch-deleted': '已删除分支 Deleted branch: {name}',
+    'toast-switched-branch': '已切换到分支',
+    'rename-default': '手动标记 Manual mark',
+    'timeline-branch': '创建分支 Branch',
+    'branch-create-title': '创建分支 Create Branch',
+    'branch-create-placeholder': '如：探索另一个方向…',
+    'btn-create': '创建 Create',
+    'branch-created': '分支创建 Branch created',
+    'toast-branch-created': '已创建分支',
+    'card-ai-title': 'AI 对话 Chat',
+    'card-ai-send': '发送 Send',
+    'card-ai-context': '卡片内容 Card',
+    'card-ai-connections': '关联 Links',
+    'card-ai-thinking': 'AI 分析 Analysis：',
+    'card-ai-to-card': '转为卡片 To card',
+    'graph-title': '版本图 Graph',
+    'graph-manual': '手动标记',
+    'time-just-now': '刚刚 Just now',
+    'time-mins-ago': '{n}分钟前',
+    'time-hours-ago': '{n}小时前',
+    'gitgraph-fab-title': '版本图 Version Graph',
+  },
+  'zh': {
+    'kbd-capture': 'Ctrl+Shift+C 捕捉',
+    'btn-capture': '+ 新建捕捉',
+    'nav-canvas': '画布',
+    'nav-inbox': '收件箱',
+    'nav-conclusions': '结论',
+    'sidebar-inbox': '收件箱',
+    'search-placeholder': '搜索卡片…',
+    'timeline-versions': '版本',
+    'timeline-mark': '标记版本',
+    'ai-title': 'AI 质询',
+    'ai-input-placeholder': '追问 AI…',
+    'ai-send': '发送',
+    'capture-title': '快速捕捉',
+    'capture-placeholder': '输入想法、粘贴链接、记录灵感…',
+    'capture-submit': '存入收件箱',
+    'ctx-question': '质询这组想法',
+    'ctx-conclude': '固化为结论',
+    'ctx-delete': '删除卡片',
+    'ctx-to-canvas': '移到画布',
+    'ctx-cycle-label': '切换关系',
+    'ctx-delete-conn': '删除连接',
+    'rename-title': '命名版本',
+    'rename-placeholder': '如：确定了核心架构…',
+    'btn-cancel': '取消',
+    'btn-save': '保存标记',
+    'version-viewing': '正在查看 3小时前的版本',
+    'version-restore': '回到此版本',
+    'label-supports': '支撑',
+    'label-questions': '质疑',
+    'label-related': '相关',
+    'label-leads': '导致',
+    'label-opposes': '反对',
+    'status-pending': '待验证',
+    'status-verified': '已验证',
+    'status-conclusion': '结论',
+    'toast-card-added': '卡片已添加到画布',
+    'toast-connected': '已建立连接',
+    'toast-deleted': '已删除',
+    'toast-conn-deleted': '连接已删除',
+    'toast-captured': '已存入收件箱',
+    'toast-moved': '已移到画布',
+    'toast-restored': '已恢复到此版本',
+    'dragged-card': '移动卡片',
+    'toast-min-cards': '请至少选择 2 张卡片',
+    'toast-conclusion-done': '结论已固化',
+    'toast-expand': '展开论证链（演示功能）',
+    'toast-version-marked': '版本已标记',
+    'ai-selected': '已选择 {n} 张卡片进行质询',
+    'ai-chain': '我理解你的逻辑链：',
+    'ai-question-btn': '+ 转为卡片',
+    'ai-core-assumption': '这条链路的核心假设是"外部系统可以弥补人类工作记忆的局限"。',
+    'ai-q1-title': '质疑点 1：',
+    'ai-q1-body': '你假设用户会在"收集"和"整理"之间切换——但如果用户只收集不整理呢？收件箱会不会变成新的信息垃圾场？',
+    'ai-q1-card': '如果用户只收集不整理，收件箱如何避免变成信息垃圾场？',
+    'ai-q2-title': '质疑点 2：',
+    'ai-q2-body': 'AI 质询需要用户先选中卡片再触发——这个"主动选择"的动作本身就是认知负担。有没有可能让 AI 主动发现思维链中的漏洞？',
+    'ai-q2-card': 'AI 是否应该主动发现思维漏洞，而非等待用户手动触发质询？',
+    'ai-q3-title': '质疑点 3：',
+    'ai-q3-body': '结论固化生成"摘要"——但摘要丢失了论证过程中的微妙差异。固化是否应该保留完整的推理路径？',
+    'ai-q3-card': '结论固化是否应该保留完整推理路径，而非仅生成摘要？',
+    'timeline-current': '当前 · {time}',
+    'version-label': '正在查看 {ago}的版本: {label}',
+    'source-capture': '来源: Nexus 画布 · {time}',
+    'source-ai': 'AI 质询',
+    'source-conclusion': '结论固化',
+    'source-nexus': 'Nexus 捕捉',
+    'expand-chain': '展开论证链 ▾',
+    'conclusion-summary': '{n} 张卡片的综合结论',
+    'restored-label': '恢复版本: {label}',
+    'initial-state': '初始状态',
+    'edit-card': '编辑卡片内容:',
+    'zoom-out': '缩小',
+    'zoom-in': '放大',
+    'zoom-fit': '适应画面',
+    'tweaks-language': '语言',
+    'branch-rename': '重命名分支',
+    'branch-list-title': '分支',
+    'branch-rename-prompt': '输入新分支名：',
+    'branch-delete': '删除分支',
+    'branch-delete-confirm': '确定删除分支 "{name}"？其所有版本将丢失。',
+    'toast-branch-deleted': '已删除分支: {name}',
+    'toast-switched-branch': '已切换到分支',
+    'rename-default': '手动标记',
+    'timeline-branch': '创建分支',
+    'branch-create-title': '创建分支',
+    'branch-create-placeholder': '如：探索另一个方向…',
+    'btn-create': '创建',
+    'branch-created': '分支创建',
+    'toast-branch-created': '已创建分支',
+    'card-ai-title': 'AI 对话',
+    'card-ai-send': '发送',
+    'card-ai-context': '卡片内容',
+    'card-ai-connections': '关联',
+    'card-ai-thinking': 'AI 分析：',
+    'card-ai-to-card': '转为卡片',
+    'graph-title': '版本图',
+    'graph-manual': '手动标记',
+    'time-just-now': '刚刚',
+    'time-mins-ago': '{n}分钟前',
+    'time-hours-ago': '{n}小时前',
+    'gitgraph-fab-title': '版本图',
+  },
+  'en': {
+    'kbd-capture': 'Ctrl+Shift+C Capture',
+    'btn-capture': '+ New Capture',
+    'nav-canvas': 'Canvas',
+    'nav-inbox': 'Inbox',
+    'nav-conclusions': 'Conclusions',
+    'sidebar-inbox': 'Inbox',
+    'search-placeholder': 'Search cards…',
+    'timeline-versions': 'Versions',
+    'timeline-mark': 'Mark Version',
+    'ai-title': 'AI Inquiry',
+    'ai-input-placeholder': 'Ask AI…',
+    'ai-send': 'Send',
+    'capture-title': 'Quick Capture',
+    'capture-placeholder': 'Enter thoughts, paste links, record ideas…',
+    'capture-submit': 'Save to Inbox',
+    'ctx-question': 'Question These Ideas',
+    'ctx-conclude': 'Solidify as Conclusion',
+    'ctx-delete': 'Delete Card',
+    'ctx-to-canvas': 'Move to Canvas',
+    'ctx-cycle-label': 'Cycle Label',
+    'ctx-delete-conn': 'Delete Connection',
+    'rename-title': 'Name Version',
+    'rename-placeholder': 'e.g. Core architecture decided…',
+    'btn-cancel': 'Cancel',
+    'btn-save': 'Save Mark',
+    'version-viewing': 'Viewing version from 3 hours ago',
+    'version-restore': 'Restore This Version',
+    'label-supports': 'Supports',
+    'label-questions': 'Questions',
+    'label-related': 'Related',
+    'label-leads': 'Leads to',
+    'label-opposes': 'Opposes',
+    'status-pending': 'Pending',
+    'status-verified': 'Verified',
+    'status-conclusion': 'Conclusion',
+    'toast-card-added': 'Card added to canvas',
+    'toast-conn-deleted': 'Connection deleted',
+    'toast-connected': 'Connection established',
+    'toast-deleted': 'Deleted',
+    'toast-captured': 'Saved to inbox',
+    'toast-moved': 'Moved to canvas',
+    'toast-restored': 'Restored to this version',
+    'dragged-card': 'Moved card',
+    'toast-min-cards': 'Select at least 2 cards',
+    'toast-conclusion-done': 'Conclusion solidified',
+    'toast-expand': 'Expand chain (demo)',
+    'toast-version-marked': 'Version marked',
+    'ai-selected': '{n} cards selected for inquiry',
+    'ai-chain': 'I understand your logic chain:',
+    'ai-question-btn': '+ Convert to card',
+    'ai-core-assumption': 'The core assumption of this chain is that "external systems can compensate for the limitations of human working memory."',
+    'ai-q1-title': 'Challenge 1: ',
+    'ai-q1-body': 'You assume users will switch between "collecting" and "organizing" — but what if they only collect? Won\'t the inbox become a new information dump?',
+    'ai-q1-card': 'If users only collect without organizing, how can the inbox avoid becoming an information dump?',
+    'ai-q2-title': 'Challenge 2: ',
+    'ai-q2-body': 'AI inquiry requires users to manually select cards first — this "active selection" is itself cognitive load. Could AI proactively discover gaps in the thinking chain?',
+    'ai-q2-card': 'Should AI proactively discover thinking gaps instead of waiting for users to trigger inquiries?',
+    'ai-q3-title': 'Challenge 3: ',
+    'ai-q3-body': 'Conclusion solidification generates a "summary" — but summaries lose nuanced differences from the argumentation process. Should solidification preserve the complete reasoning path?',
+    'ai-q3-card': 'Should conclusion solidification preserve the complete reasoning path instead of just generating a summary?',
+    'timeline-current': 'Current · {time}',
+    'version-label': 'Viewing {ago} version: {label}',
+    'source-capture': 'Source: Nexus Canvas · {time}',
+    'source-ai': 'AI Inquiry',
+    'source-conclusion': 'Conclusion',
+    'source-nexus': 'Nexus Capture',
+    'expand-chain': 'Expand chain ▾',
+    'conclusion-summary': 'Synthesis of {n} cards',
+    'restored-label': 'Restored: {label}',
+    'initial-state': 'Initial state',
+    'edit-card': 'Edit card content:',
+    'zoom-out': 'Zoom out',
+    'zoom-in': 'Zoom in',
+    'zoom-fit': 'Fit to view',
+    'tweaks-language': 'Language',
+    'branch-rename': 'Rename Branch',
+    'branch-list-title': 'Branches',
+    'branch-rename-prompt': 'Enter new branch name:',
+    'branch-delete': 'Delete Branch',
+    'branch-delete-confirm': 'Delete branch "{name}"? All its versions will be lost.',
+    'toast-branch-deleted': 'Deleted branch: {name}',
+    'toast-switched-branch': 'Switched to branch',
+    'rename-default': 'Manual mark',
+    'timeline-branch': 'Create Branch',
+    'branch-create-title': 'Create Branch',
+    'branch-create-placeholder': 'e.g. exploring another direction…',
+    'btn-create': 'Create',
+    'branch-created': 'Branch created',
+    'toast-branch-created': 'Created branch',
+    'card-ai-title': 'AI Chat',
+    'card-ai-send': 'Send',
+    'card-ai-context': 'Card content',
+    'card-ai-connections': 'Linked',
+    'card-ai-thinking': 'AI Analysis:',
+    'card-ai-to-card': 'Convert to card',
+    'graph-title': 'Version Graph',
+    'graph-manual': 'Manual mark',
+    'time-just-now': 'Just now',
+    'time-mins-ago': '{n}m ago',
+    'time-hours-ago': '{n}h ago',
+    'gitgraph-fab-title': 'Version Graph',
+  }
+};
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function t(key, params) {
+  const dict = i18n[currentLang] || i18n['bilingual'];
+  let text = dict[key] || i18n['bilingual'][key] || key;
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => { text = text.replace(`{${k}}`, v); });
+  }
+  return text;
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  // Update toggle buttons (in tweaks panel)
+  document.querySelectorAll('#tweaksLangGroup button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === lang);
+  });
+  // Update all data-i18n elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  // Update all data-i18n-placeholder elements
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  // Update all data-i18n-title elements
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.dataset.i18nTitle);
+  });
+  // Re-render dynamic content
+  renderInbox();
+  renderCanvas();
+  renderConnections();
+  updateTimeline();
+  // Persist
+  localStorage.setItem('nexus-lang', lang);
+}
+
+// Restore saved language on load
+(function restoreLang() {
+  const saved = localStorage.getItem('nexus-lang');
+  if (saved && i18n[saved]) {
+    currentLang = saved;
+  }
+})();
+
+/* ── Sample inbox data ── */
+const sampleCards = [
+  { text: '用户在信息过载时需要一个外部系统来组织思维碎片，而不是依赖记忆', source: '浏览器 Browser', time: '14:12', status: '' },
+  { text: 'Roam Research 的双向链接模型虽然强大，但学习曲线陡峭，普通用户难以坚持', source: '笔记 Notes', time: '14:08', status: '' },
+  { text: 'AI 质询可以帮助用户发现自己推理中的逻辑漏洞，这是传统笔记工具做不到的', source: '浏览器 Browser', time: '13:55', status: '' },
+  { text: '思维导图的问题在于它只展示层级关系，不展示因果和时间关系', source: '终端 Terminal', time: '13:41', status: '' },
+  { text: '版本回溯让用户能"回到那个想法还成立的时刻"，这比撤销操作更有意义', source: 'Slack', time: '13:30', status: '' },
+];
+
+/* ── Sample canvas data ── */
+const sampleCanvasCards = [
+  { id: 101, x: 120, y: 140, text: '核心假设：人的思维是非线性的，但传统工具要求线性记录', source: '浏览器 Browser', status: '' },
+  { id: 102, x: 480, y: 100, text: '双区布局将"收集"与"整理"物理分离，降低认知负担', source: '笔记 Notes', status: '' },
+  { id: 103, x: 300, y: 360, text: 'AI 质询不是替你思考，而是暴露你思维中的隐含假设', source: '浏览器 Browser', status: '' },
+  { id: 104, x: 650, y: 320, text: '结论固化给思考一个"句号"——思维链需要输出物', source: '终端 Terminal', status: '' },
+];
+const sampleConnections = [
+  { from: 101, to: 102, label: '支撑 Supports' },
+  { from: 101, to: 103, label: '导致 Leads to' },
+  { from: 103, to: 104, label: '支撑 Supports' },
+];
+
+/* ═══════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════ */
+function init() {
+  // Load inbox
+  sampleCards.forEach((c, i) => {
+    state.cards.push({ id: state.nextId++, text: c.text, source: c.source, time: c.time, status: c.status, inCanvas: false, x: 0, y: 0 });
+  });
+  // Load canvas cards
+  sampleCanvasCards.forEach(c => {
+    state.cards.push({ id: c.id, text: c.text, source: c.source, time: '14:30', status: c.status, inCanvas: true, x: c.x, y: c.y });
+    if (c.id >= state.nextId) state.nextId = c.id + 1;
+  });
+  // Load connections
+  sampleConnections.forEach(c => state.connections.push({ ...c }));
+
+  renderInbox();
+  renderCanvas();
+  renderConnections();
+  saveVersion(t('initial-state'));
+  updateTimeline();
+  // Apply saved language
+  setLang(currentLang);
+}
+
+/* ═══════════════════════════════════════════════════════
+   INBOX
+   ═══════════════════════════════════════════════════════ */
+function renderInbox() {
+  const list = document.getElementById('inboxList');
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const inboxCards = state.cards.filter(c => !c.inCanvas);
+  const filtered = search ? inboxCards.filter(c => c.text.toLowerCase().includes(search)) : inboxCards;
+
+  document.getElementById('inboxCount').textContent = filtered.length;
+
+  list.innerHTML = filtered.map(c => {
+    const icon = getSourceIcon(c.source);
+    const statusClass = c.status || '';
+    return `<div class="inbox-card" draggable="true"
+      data-id="${c.id}"
+      ondragstart="onInboxDragStart(event, ${c.id})"
+      ondragend="onInboxDragEnd(event)"
+      oncontextmenu="onInboxContext(event, ${c.id})">
+      <div class="inbox-card-source">${icon} ${c.source}</div>
+      <div class="inbox-card-text">${c.text}</div>
+      <div class="inbox-card-meta">${c.time}</div>
+      ${statusClass ? `<div class="inbox-card-status ${statusClass}"></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function getSourceIcon(source) {
+  if (source.includes('浏览器')) return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>';
+  if (source.includes('笔记')) return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+  if (source.includes('Slack')) return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>';
+}
+
+/* ═══════════════════════════════════════════════════════
+   CANVAS
+   ═══════════════════════════════════════════════════════ */
+function renderCanvas() {
+  const inner = document.getElementById('canvasInner');
+  const canvasCards = state.cards.filter(c => c.inCanvas);
+
+  inner.innerHTML = canvasCards.map(c => {
+    const selected = state.selectedCards.has(c.id) ? 'selected' : '';
+    const isConclusion = c.status === 'conclusion';
+    const statusTag = c.status === 'pending' ? `<span class="card-status-tag pending">${t('status-pending')}</span>`
+      : c.status === 'verified' ? `<span class="card-status-tag verified">${t('status-verified')}</span>`
+      : isConclusion ? `<span class="card-status-tag conclusion">${t('status-conclusion')}</span>` : '';
+
+    if (isConclusion) {
+      return `<div class="canvas-card conclusion-card ${selected}" data-id="${c.id}"
+        style="left:${c.x}px;top:${c.y}px"
+        onmousedown="onCanvasCardMouseDown(event, ${c.id})"
+        ondblclick="onCanvasCardDblClick(event, ${c.id})"
+        oncontextmenu="onCanvasCardContext(event, ${c.id})">
+        <div class="card-head">
+          <span class="card-source">${t('status-conclusion')}</span>
+        </div>
+        <button class="card-ai-btn" onclick="event.stopPropagation();openCardAiPopup(${c.id})" title="${t('card-ai-title')}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </button>
+        <div class="card-body">${c.text}</div>
+        ${c.summary ? `<div class="card-summary">${c.summary}</div>` : ''}
+        <span class="card-expand" onclick="toggleConclusionExpand(${c.id})">${t('expand-chain')}</span>
+        ${statusTag}
+      </div>`;
+    }
+
+    return `<div class="canvas-card ${selected}" data-id="${c.id}"
+      style="left:${c.x}px;top:${c.y}px"
+      onmousedown="onCanvasCardMouseDown(event, ${c.id})"
+      ondblclick="onCanvasCardDblClick(event, ${c.id})"
+      oncontextmenu="onCanvasCardContext(event, ${c.id})">
+      <div class="card-head">
+        <span class="card-source">${c.source}</span>
+      </div>
+      <button class="card-ai-btn" onclick="event.stopPropagation();openCardAiPopup(${c.id})" title="${t('card-ai-title')}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      </button>
+      <div class="card-body">${c.text}</div>
+      ${statusTag}
+      <div class="conn-port top" onmousedown="startConnect(event, ${c.id})"></div>
+      <div class="conn-port right" onmousedown="startConnect(event, ${c.id})"></div>
+      <div class="conn-port bottom" onmousedown="startConnect(event, ${c.id})"></div>
+      <div class="conn-port left" onmousedown="startConnect(event, ${c.id})"></div>
+    </div>`;
+  }).join('');
+}
+
+function renderConnections() {
+  const svg = document.getElementById('connectionsSvg');
+  // Remove old labels
+  document.querySelectorAll('.conn-label').forEach(el => el.remove());
+
+  svg.innerHTML = '<defs><marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="oklch(54% 0.012 250)" opacity="0.5"/></marker></defs>';
+  svg.innerHTML += state.connections.map(conn => {
+    const fromCard = state.cards.find(c => c.id === conn.from);
+    const toCard = state.cards.find(c => c.id === conn.to);
+    if (!fromCard || !toCard) return '';
+
+    const x1 = fromCard.x + 120;
+    const y1 = fromCard.y + 40;
+    const x2 = toCard.x + 120;
+    const y2 = toCard.y + 40;
+
+    // Create label
+    const label = document.createElement('div');
+    label.className = 'conn-label';
+    label.textContent = conn.label;
+    label.style.left = ((x1 + x2) / 2 - 30) + 'px';
+    label.style.top = ((y1 + y2) / 2 - 10) + 'px';
+    label.onclick = () => cycleLabel(conn);
+    label.oncontextmenu = (e) => showConnContextMenu(e, conn);
+    document.getElementById('canvasInner').appendChild(label);
+
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" marker-end="url(#arrow)"/>`;
+  }).join('');
+}
+
+function cycleLabel(conn) {
+  const idx = LABELS.indexOf(conn.label);
+  conn.label = LABELS[(idx + 1) % LABELS.length];
+  renderConnections();
+  showToast(conn.label);
+}
+
+/* ═══════════════════════════════════════════════════════
+   DRAG & DROP (Inbox → Canvas)
+   ═══════════════════════════════════════════════════════ */
+function onInboxDragStart(e, id) {
+  e.dataTransfer.setData('text/plain', id);
+  e.target.classList.add('dragging');
+}
+function onInboxDragEnd(e) {
+  e.target.classList.remove('dragging');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const canvasArea = document.getElementById('canvasArea');
+
+  canvasArea.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  canvasArea.addEventListener('drop', e => {
+    e.preventDefault();
+    const id = parseInt(e.dataTransfer.getData('text/plain'));
+    const card = state.cards.find(c => c.id === id);
+    if (!card) return;
+
+    const rect = canvasArea.getBoundingClientRect();
+    const x = (e.clientX - rect.left - state.pan.x) / state.zoom;
+    const y = (e.clientY - rect.top - state.pan.y) / state.zoom;
+
+    card.inCanvas = true;
+    card.x = Math.round(x - 120);
+    card.y = Math.round(y - 30);
+
+    renderInbox();
+    renderCanvas();
+    renderConnections();
+    saveVersion('添加卡片 Added card');
+    showToast(t('toast-card-added'));
+  });
+});
+
+/* ═══════════════════════════════════════════════════════
+   CANVAS CARD INTERACTIONS
+   ═══════════════════════════════════════════════════════ */
+function onCanvasCardMouseDown(e, id) {
+  if (e.button === 2) return; // right-click handled by context
+  if (e.target.closest('.card-ai-btn')) return; // AI button has its own handler
+  e.stopPropagation();
+
+  const card = state.cards.find(c => c.id === id);
+  if (!card) return;
+
+  if (e.shiftKey) {
+    // Toggle selection
+    if (state.selectedCards.has(id)) state.selectedCards.delete(id);
+    else state.selectedCards.add(id);
+    renderCanvas();
+    return;
+  }
+
+  // If clicking an unselected card, select only it
+  if (!state.selectedCards.has(id)) {
+    state.selectedCards.clear();
+    state.selectedCards.add(id);
+  }
+
+  // Start group drag — record initial positions of all selected cards
+  state.draggingCard = id;
+  const rect = document.getElementById('canvasArea').getBoundingClientRect();
+  state.dragStartMouse = {
+    x: e.clientX,
+    y: e.clientY
+  };
+  state.dragStartPositions = {};
+  state.selectedCards.forEach(sid => {
+    const sc = state.cards.find(c => c.id === sid);
+    if (sc) state.dragStartPositions[sid] = { x: sc.x, y: sc.y };
+  });
+  state.dragOffset.x = e.clientX - card.x * state.zoom - state.pan.x;
+  state.dragOffset.y = e.clientY - card.y * state.zoom - state.pan.y;
+
+  renderCanvas();
+}
+
+function startConnect(e, id) {
+  e.stopPropagation();
+  e.preventDefault();
+  state.connecting = true;
+  state.connectFrom = id;
+  document.body.style.cursor = 'crosshair';
+}
+
+document.addEventListener('mousemove', e => {
+  if (state.draggingCard && state.dragStartPositions) {
+    const dx = (e.clientX - state.dragStartMouse.x) / state.zoom;
+    const dy = (e.clientY - state.dragStartMouse.y) / state.zoom;
+    state.selectedCards.forEach(sid => {
+      const sc = state.cards.find(c => c.id === sid);
+      const startPos = state.dragStartPositions[sid];
+      if (sc && startPos) {
+        sc.x = Math.max(0, Math.round(startPos.x + dx));
+        sc.y = Math.max(0, Math.round(startPos.y + dy));
+      }
+    });
+    state.didDrag = true;
+    renderCanvas();
+    renderConnections();
+  }
+
+  if (state.connecting && state.connectFrom) {
+    // Draw temp line
+    const fromCard = state.cards.find(c => c.id === state.connectFrom);
+    if (!fromCard) return;
+    const rect = document.getElementById('canvasArea').getBoundingClientRect();
+    const x1 = fromCard.x + 120;
+    const y1 = fromCard.y + 40;
+    const x2 = (e.clientX - rect.left - state.pan.x) / state.zoom;
+    const y2 = (e.clientY - rect.top - state.pan.y) / state.zoom;
+    const svg = document.getElementById('connectionsSvg');
+    // Remove temp line
+    svg.querySelector('.temp-line')?.remove();
+    svg.innerHTML += `<line class="temp-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-dasharray="6 4" style="stroke:var(--accent);opacity:0.5"/>`;
+  }
+
+  // Selection box
+  if (state.selectionStart) {
+    const box = document.getElementById('selectionBox');
+    const rect = document.getElementById('canvasArea').getBoundingClientRect();
+    const cx = (e.clientX - rect.left - state.pan.x) / state.zoom;
+    const cy = (e.clientY - rect.top - state.pan.y) / state.zoom;
+    const x = Math.min(state.selectionStart.x, cx);
+    const y = Math.min(state.selectionStart.y, cy);
+    const w = Math.abs(cx - state.selectionStart.x);
+    const h = Math.abs(cy - state.selectionStart.y);
+    box.style.left = x + 'px';
+    box.style.top = y + 'px';
+    box.style.width = w + 'px';
+    box.style.height = h + 'px';
+    box.style.display = 'block';
+  }
+});
+
+document.addEventListener('mouseup', e => {
+  if (state.draggingCard) {
+    state.draggingCard = null;
+    state.dragStartPositions = null;
+    state.dragStartMouse = null;
+    state.didDrag = false;
+  }
+  if (state.connecting && state.connectFrom) {
+    // Check if we're over a card
+    const target = e.target.closest('.canvas-card');
+    if (target) {
+      const targetId = parseInt(target.dataset.id);
+      if (targetId !== state.connectFrom) {
+        state.connections.push({ from: state.connectFrom, to: targetId, label: t('label-related') });
+        renderConnections();
+        saveVersion('添加连接 Added connection');
+        showToast(t('toast-connected'));
+      }
+    }
+    state.connecting = false;
+    state.connectFrom = null;
+    document.body.style.cursor = '';
+    document.getElementById('connectionsSvg').querySelector('.temp-line')?.remove();
+  }
+  if (state.selectionStart) {
+    const box = document.getElementById('selectionBox');
+    const bx = parseFloat(box.style.left);
+    const by = parseFloat(box.style.top);
+    const bw = parseFloat(box.style.width);
+    const bh = parseFloat(box.style.height);
+    if (bw > 5 || bh > 5) {
+      state.cards.filter(c => c.inCanvas).forEach(c => {
+        const cw = 240, ch = 80;
+        if (c.x + cw > bx && c.x < bx + bw && c.y + ch > by && c.y < by + bh) {
+          state.selectedCards.add(c.id);
+        }
+      });
+    }
+    renderCanvas();
+    state.selectionStart = null;
+    box.style.display = 'none';
+  }
+});
+
+function onCanvasCardDblClick(e, id) {
+  e.stopPropagation();
+  const card = state.cards.find(c => c.id === id);
+  if (!card) return;
+  const newText = prompt(t('edit-card'), card.text);
+  if (newText !== null && newText.trim()) {
+    card.text = newText.trim();
+    renderCanvas();
+    renderConnections();
+    saveVersion('编辑卡片 Edited card');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   CONTEXT MENU
+   ═══════════════════════════════════════════════════════ */
+let contextTarget = null;
+
+function onCanvasCardContext(e, id) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Close other context menus
+  document.getElementById('connContextMenu').classList.remove('show');
+  document.getElementById('inboxContextMenu').classList.remove('show');
+
+  if (!state.selectedCards.has(id)) {
+    state.selectedCards.clear();
+    state.selectedCards.add(id);
+    renderCanvas();
+  }
+  contextTarget = id;
+
+  const menu = document.getElementById('contextMenu');
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+  menu.classList.add('show');
+}
+
+document.addEventListener('click', (e) => {
+  // Don't close card AI popup if clicking inside it
+  if (!e.target.closest('.card-ai-popup') && !e.target.closest('.card-ai-btn')) {
+    // Card AI popup stays open — user closes it via the X button
+  }
+  document.getElementById('contextMenu').classList.remove('show');
+  document.getElementById('inboxContextMenu').classList.remove('show');
+  document.getElementById('connContextMenu').classList.remove('show');
+  closeGraphBranchDropdown();
+});
+
+function contextAction(action) {
+  document.getElementById('contextMenu').classList.remove('show');
+
+  if (action === 'question') {
+    openAiPanel();
+  } else if (action === 'conclude') {
+    solidifyConclusion();
+  } else if (action === 'delete') {
+    state.selectedCards.forEach(id => {
+      state.cards = state.cards.filter(c => c.id !== id);
+      state.connections = state.connections.filter(c => c.from !== id && c.to !== id);
+    });
+    state.selectedCards.clear();
+    renderCanvas();
+    renderConnections();
+    renderInbox();
+    saveVersion('删除卡片 Deleted card');
+    showToast(t('toast-deleted'));
+  }
+}
+
+let inboxContextTarget = null;
+
+function onInboxContext(e, id) {
+  e.preventDefault();
+  e.stopPropagation();
+  inboxContextTarget = id;
+
+  // Close canvas context menu if open
+  document.getElementById('contextMenu').classList.remove('show');
+  document.getElementById('connContextMenu').classList.remove('show');
+
+  const menu = document.getElementById('inboxContextMenu');
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+  menu.classList.add('show');
+}
+
+function inboxContextAction(action) {
+  document.getElementById('inboxContextMenu').classList.remove('show');
+  if (inboxContextTarget === null) return;
+
+  if (action === 'toCanvas') {
+    const card = state.cards.find(c => c.id === inboxContextTarget);
+    if (card) {
+      card.inCanvas = true;
+      card.x = 200 + Math.random() * 400;
+      card.y = 150 + Math.random() * 300;
+      renderInbox();
+      renderCanvas();
+      showToast(t('toast-moved'));
+    }
+  } else if (action === 'delete') {
+    state.cards = state.cards.filter(c => c.id !== inboxContextTarget);
+    renderInbox();
+    showToast(t('toast-deleted'));
+  }
+
+  inboxContextTarget = null;
+}
+
+let connContextTarget = null;
+
+function showConnContextMenu(e, conn) {
+  e.preventDefault();
+  e.stopPropagation();
+  connContextTarget = conn;
+
+  // Close other context menus
+  document.getElementById('contextMenu').classList.remove('show');
+  document.getElementById('inboxContextMenu').classList.remove('show');
+
+  const menu = document.getElementById('connContextMenu');
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+  menu.classList.add('show');
+}
+
+function connContextAction(action) {
+  document.getElementById('connContextMenu').classList.remove('show');
+  if (!connContextTarget) return;
+
+  if (action === 'cycle') {
+    cycleLabel(connContextTarget);
+  } else if (action === 'delete') {
+    deleteConnection(connContextTarget);
+  }
+  connContextTarget = null;
+}
+
+function deleteConnection(conn) {
+  state.connections = state.connections.filter(c => c !== conn);
+  renderConnections();
+  saveVersion('删除连接 Deleted connection');
+  showToast(t('toast-conn-deleted'));
+}
+
+/* ═══════════════════════════════════════════════════════
+   AI PANEL
+   ═══════════════════════════════════════════════════════ */
+function openAiPanel() {
+  const panel = document.getElementById('aiPanel');
+  panel.classList.add('open');
+
+  const selected = state.cards.filter(c => state.selectedCards.has(c.id));
+  const messages = document.getElementById('aiMessages');
+
+  // Build AI response
+  const chainDesc = selected.map((c, i) => `${String.fromCharCode(65 + i)}: "${c.text.substring(0, 30)}…"`).join(' → ');
+
+  messages.innerHTML = `
+    <div class="ai-msg system">${t('ai-selected', {n: selected.length})}</div>
+    <div class="ai-msg ai">
+      <strong>${t('ai-chain')}</strong><br/><br/>
+      ${chainDesc}<br/><br/>
+      ${t('ai-core-assumption')}<br/><br/>
+      <strong>${t('ai-q1-title')}</strong>${t('ai-q1-body')}<br/><br/>
+      <span class="msg-action" onclick="addQuestionCard('${t('ai-q1-card')}')">${t('ai-question-btn')}</span>
+      <br/><br/>
+      <strong>${t('ai-q2-title')}</strong>${t('ai-q2-body')}<br/><br/>
+      <span class="msg-action" onclick="addQuestionCard('${t('ai-q2-card')}')">${t('ai-question-btn')}</span>
+      <br/><br/>
+      <strong>${t('ai-q3-title')}</strong>${t('ai-q3-body')}<br/><br/>
+      <span class="msg-action" onclick="addQuestionCard('${t('ai-q3-card')}')">${t('ai-question-btn')}</span>
+    </div>
+  `;
+}
+
+function closeAiPanel() {
+  document.getElementById('aiPanel').classList.remove('open');
+}
+
+function addQuestionCard(text) {
+  // Find center of selected cards
+  const selected = state.cards.filter(c => state.selectedCards.has(c.id));
+  const avgX = selected.reduce((s, c) => s + c.x, 0) / selected.length;
+  const avgY = selected.reduce((s, c) => s + c.y, 0) / selected.length;
+
+  const newCard = {
+    id: state.nextId++,
+    text: text,
+    source: t('source-ai'),
+    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+    status: 'pending',
+    inCanvas: true,
+    x: Math.round(avgX + 280),
+    y: Math.round(avgY + 40),
+  };
+  state.cards.push(newCard);
+  renderCanvas();
+  showToast(t('toast-card-added'));
+  saveVersion('AI 质询添加质疑卡片');
+}
+
+function sendAiMessage() {
+  const input = document.getElementById('aiInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const messages = document.getElementById('aiMessages');
+  messages.innerHTML += `<div class="ai-msg" style="align-self:flex-end;background:var(--fg);color:var(--bg)">${text}</div>`;
+  input.value = '';
+
+  // Simulate AI response
+  setTimeout(() => {
+    messages.innerHTML += `<div class="ai-msg ai">
+      这是个好问题。基于你选中的卡片，我认为可以进一步思考：这个系统的"最小可用版本"应该只包含捕捉和画布两个模块，AI 质询可以作为第二阶段的功能。因为前两个模块已经足够验证"外部化思维"这个核心假设。
+      <br/><br/><span class="msg-action" onclick="addQuestionCard('最小可用版本是否应该只包含捕捉和画布，AI 质询延后？')">+ 转为卡片</span>
+    </div>`;
+    messages.scrollTop = messages.scrollHeight;
+  }, 800);
+}
+
+document.getElementById('aiInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendAiMessage();
+});
+
+document.getElementById('renameInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmRename();
+});
+
+document.getElementById('branchNameInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmCreateBranch();
+});
+
+/* ═══════════════════════════════════════════════════════
+   CARD AI CHAT POPUP (per-card floating AI)
+   ═══════════════════════════════════════════════════════ */
+let cardAiTargetId = null;
+let cardAiDragState = null;
+
+function openCardAiPopup(cardId) {
+  const card = state.cards.find(c => c.id === cardId);
+  if (!card) return;
+
+  cardAiTargetId = cardId;
+  const popup = document.getElementById('cardAiPopup');
+  const body = document.getElementById('cardAiBody');
+  const title = document.getElementById('cardAiTitle');
+  const input = document.getElementById('cardAiInput');
+
+  // Set title — truncated card text
+  const shortText = card.text.length > 30 ? card.text.substring(0, 30) + '…' : card.text;
+  title.textContent = shortText;
+
+  // Position popup near the card
+  const canvasArea = document.getElementById('canvasArea');
+  const rect = canvasArea.getBoundingClientRect();
+  let popupX = rect.left + card.x * state.zoom + state.pan.x + 260 * state.zoom + 12;
+  let popupY = rect.top + card.y * state.zoom + state.pan.y;
+
+  // If popup would overflow right edge, show on left side of card
+  if (popupX + 340 > window.innerWidth) {
+    popupX = rect.left + card.x * state.zoom + state.pan.x - 352;
+  }
+  // Clamp to viewport
+  popupX = Math.max(8, Math.min(popupX, window.innerWidth - 348));
+  popupY = Math.max(8, Math.min(popupY, window.innerHeight - 448));
+
+  popup.style.left = popupX + 'px';
+  popup.style.top = popupY + 'px';
+
+  // Build initial messages
+  const cardConnections = state.connections.filter(c => c.from === cardId || c.to === cardId);
+  const connectedCards = cardConnections.map(c => {
+    const otherId = c.from === cardId ? c.to : c.from;
+    const other = state.cards.find(cc => cc.id === otherId);
+    return other ? `"${other.text.substring(0, 25)}…"（${c.label}）` : '';
+  }).filter(Boolean);
+
+  let contextHtml = `<div class="card-ai-msg system">${t('card-ai-context')}: "${shortText}"</div>`;
+  if (connectedCards.length > 0) {
+    contextHtml += `<div class="card-ai-msg system">${t('card-ai-connections')}: ${connectedCards.join('、')}</div>`;
+  }
+
+  // Generate AI response based on card content
+  const aiResponse = generateCardAiResponse(card, cardConnections);
+  contextHtml += `<div class="card-ai-msg ai"><strong>${t('card-ai-thinking')}</strong><br/><br/>${aiResponse.text}`;
+  if (aiResponse.action) {
+    contextHtml += `<br/><span class="card-ai-action" onclick="addCardAiQuestion(${cardId}, '${aiResponse.action.text}')">+ ${t('card-ai-to-card')}</span>`;
+  }
+  contextHtml += `</div>`;
+
+  body.innerHTML = contextHtml;
+  popup.classList.add('show');
+  setTimeout(() => input.focus(), 100);
+}
+
+function closeCardAiPopup() {
+  document.getElementById('cardAiPopup').classList.remove('show');
+  cardAiTargetId = null;
+}
+
+function generateCardAiResponse(card, connections) {
+  // Simulate contextual AI analysis based on card content and connections
+  const hasSupports = connections.some(c => c.label.includes('支撑') || c.label.includes('Supports'));
+  const hasQuestions = connections.some(c => c.label.includes('质疑') || c.label.includes('Questions'));
+  const hasLeads = connections.some(c => c.label.includes('导致') || c.label.includes('Leads'));
+
+  let text = '';
+  let action = null;
+
+  if (connections.length === 0) {
+    text = `这张卡片是一个孤立的思维节点。它还没有与其他想法建立联系。<br/><br/><strong>建议：</strong>思考这个观点的前提是什么？它能支撑或质疑哪些其他想法？`;
+    action = { text: '这个观点的前提是什么？' };
+  } else if (hasSupports && !hasQuestions) {
+    text = `这张卡片获得了支撑，但没有受到质疑。被支撑但不被质疑的想法往往是最危险的——它们可能只是"听起来对"。<br/><br/><strong>质疑点：</strong>有没有反面证据？如果这个观点是错的，会怎样？`;
+    action = { text: '如果这个观点是错的，会有什么后果？' };
+  } else if (hasQuestions) {
+    text = `这张卡片被质疑了——这是好事。被质疑的想法要么被推翻（节省你的时间），要么被加固（变成更坚实的论点）。<br/><br/><strong>下一步：</strong>你能回应这些质疑吗？有没有证据可以化解质疑？`;
+    action = { text: '我能用什么证据回应这个质疑？' };
+  } else if (hasLeads) {
+    text = `这张卡片导致了其他想法。因果链是思维的骨架——但要注意：相关性不等于因果性。<br/><br/><strong>检验：</strong>"导致"这个关系真的成立吗？有没有其他解释？`;
+    action = { text: '这个因果关系是否真的成立？' };
+  } else {
+    text = `这张卡片处于一个复杂的关系网络中。它同时被支撑、质疑、或与其他想法相关联。<br/><br/><strong>关键问题：</strong>在这个网络中，这张卡片是核心节点还是边缘节点？如果移除它，其他想法还能成立吗？`;
+    action = { text: '如果移除这张卡片，其他想法还能成立吗？' };
+  }
+
+  return { text, action };
+}
+
+function addCardAiQuestion(cardId, questionText) {
+  const card = state.cards.find(c => c.id === cardId);
+  if (!card) return;
+
+  const newCard = {
+    id: state.nextId++,
+    text: questionText,
+    source: t('source-ai'),
+    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+    status: 'pending',
+    inCanvas: true,
+    x: card.x + 280,
+    y: card.y + Math.round(Math.random() * 80 - 40),
+  };
+  state.cards.push(newCard);
+
+  // Connect the new card to the original
+  state.connections.push({ from: cardId, to: newCard.id, label: t('label-related') });
+
+  renderCanvas();
+  renderConnections();
+  showToast(t('toast-card-added'));
+  saveVersion('AI 添加质疑卡片');
+
+  // Update the popup to show the new question
+  openCardAiPopup(cardId);
+}
+
+function sendCardAiMessage() {
+  const input = document.getElementById('cardAiInput');
+  const text = input.value.trim();
+  if (!text || !cardAiTargetId) return;
+
+  const body = document.getElementById('cardAiBody');
+  body.innerHTML += `<div class="card-ai-msg user">${text}</div>`;
+  input.value = '';
+
+  // Scroll to bottom
+  body.scrollTop = body.scrollHeight;
+
+  // Simulate AI response
+  setTimeout(() => {
+    const card = state.cards.find(c => c.id === cardAiTargetId);
+    if (!card) return;
+
+    let response = '';
+    const lowerText = text.toLowerCase();
+    if (lowerText.includes('为什么') || lowerText.includes('why') || lowerText.includes('原因')) {
+      response = `好问题。关于"${card.text.substring(0, 20)}…"，让我从几个角度分析：<br/><br/>1. <strong>表面原因：</strong>这个观点看起来有道理，因为它与你已有的某些假设一致。<br/>2. <strong>深层原因：</strong>但真正的原因可能更复杂——有没有你还没考虑到的因素？<br/>3. <strong>反面论证：</strong>试着站在反对者的角度：他们会怎么说？`;
+    } else if (lowerText.includes('证据') || lowerText.includes('evidence') || lowerText.includes('证明')) {
+      response = `对于这张卡片的内容，目前缺少的是：<br/><br/>• <strong>经验证据：</strong>有没有实际案例或数据支持？<br/>• <strong>逻辑证据：</strong>推理链条是否完整？有没有跳步？<br/>• <strong>反面证据：</strong>有没有与此矛盾的发现？<br/><br/>建议将这些待验证的点转化为新的卡片节点。`;
+    } else if (lowerText.includes('联系') || lowerText.includes('connect') || lowerText.includes('关系')) {
+      const connections = state.connections.filter(c => c.from === cardAiTargetId || c.to === cardAiTargetId);
+      if (connections.length === 0) {
+        response = `这张卡片目前是孤立的。建议思考：<br/><br/>• 它的前提是什么？（应该有一张"前提"卡片与之相连）<br/>• 它能推导出什么？（应该有"结论"卡片）<br/>• 有没有与之矛盾的观点？（应该有"质疑"连线）`;
+      } else {
+        response = `这张卡片有 ${connections.length} 条连线。关系网络分析：<br/><br/>• 它是一个<strong>汇聚节点</strong>（多条输入）还是<strong>发散节点</strong>（多条输出）？<br/>• 有没有"断头路"——某个方向的推理链突然中断了？<br/>• 最薄弱的环节是哪条连线？`;
+      }
+    } else {
+      response = `基于你的追问，我重新审视了这张卡片：<br/><br/>"${card.text.substring(0, 40)}…"<br/><br/>核心问题是：这个观点的<strong>可证伪性</strong>如何？如果它不能被推翻，那它可能不是一个有信息量的观点。好的思维节点应该足够具体，以至于可以被检验。<br/><br/><span class="card-ai-action" onclick="addCardAiQuestion(${cardAiTargetId}, '这个观点在什么条件下会被推翻？')">+ 转为卡片</span>`;
+    }
+
+    body.innerHTML += `<div class="card-ai-msg ai">${response}</div>`;
+    body.scrollTop = body.scrollHeight;
+  }, 600);
+}
+
+document.getElementById('cardAiInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendCardAiMessage();
+});
+
+// Drag support for card AI popup header
+document.getElementById('cardAiHeader')?.addEventListener('mousedown', e => {
+  if (e.target.closest('.card-ai-popup-close')) return;
+  e.preventDefault();
+  const popup = document.getElementById('cardAiPopup');
+  cardAiDragState = {
+    startX: e.clientX,
+    startY: e.clientY,
+    startLeft: parseInt(popup.style.left) || 0,
+    startTop: parseInt(popup.style.top) || 0,
+  };
+});
+
+document.addEventListener('mousemove', e => {
+  if (!cardAiDragState) return;
+  const popup = document.getElementById('cardAiPopup');
+  const dx = e.clientX - cardAiDragState.startX;
+  const dy = e.clientY - cardAiDragState.startY;
+  popup.style.left = (cardAiDragState.startLeft + dx) + 'px';
+  popup.style.top = (cardAiDragState.startTop + dy) + 'px';
+});
+
+document.addEventListener('mouseup', () => {
+  cardAiDragState = null;
+});
+
+/* ═══════════════════════════════════════════════════════
+   CAPTURE
+   ═══════════════════════════════════════════════════════ */
+function openCapture() {
+  document.getElementById('capturePopup').classList.add('open');
+  document.getElementById('backdrop').classList.add('open');
+  setTimeout(() => document.getElementById('captureInput').focus(), 100);
+
+  // Update source meta
+  const now = new Date();
+  const time = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('captureSource').textContent = t('source-capture', {time: time});
+}
+
+function closeCapture() {
+  document.getElementById('capturePopup').classList.remove('open');
+  document.getElementById('backdrop').classList.remove('open');
+  document.getElementById('captureInput').value = '';
+}
+
+function submitCapture() {
+  const text = document.getElementById('captureInput').value.trim();
+  if (!text) return;
+
+  const now = new Date();
+  const card = {
+    id: state.nextId++,
+    text: text,
+    source: t('source-nexus'),
+    time: now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+    status: '',
+    inCanvas: false,
+    x: 0, y: 0,
+  };
+  state.cards.push(card);
+  renderInbox();
+  closeCapture();
+  showToast(t('toast-captured'));
+  saveVersion('快速捕捉 Quick capture');
+}
+
+/* ═══════════════════════════════════════════════════════
+   CONCLUSION
+   ═══════════════════════════════════════════════════════ */
+function solidifyConclusion() {
+  const selected = state.cards.filter(c => state.selectedCards.has(c.id));
+  if (selected.length < 2) { showToast(t('toast-min-cards')); return; }
+
+  const avgX = selected.reduce((s, c) => s + c.x, 0) / selected.length;
+  const avgY = selected.reduce((s, c) => s + c.y, 0) / selected.length;
+
+  // Generate summary
+  const summary = selected.map(c => c.text.substring(0, 20)).join(' + ') + '… → 综合结论';
+
+  const conclusion = {
+    id: state.nextId++,
+    text: t('conclusion-summary', {n: selected.length}),
+    source: t('source-conclusion'),
+    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+    status: 'conclusion',
+    inCanvas: true,
+    x: Math.round(avgX),
+    y: Math.round(avgY - 80),
+    summary: summary,
+    chainIds: selected.map(c => c.id),
+  };
+  state.cards.push(conclusion);
+
+  // Connect conclusion to source cards
+  selected.forEach(c => {
+    state.connections.push({ from: conclusion.id, to: c.id, label: '支撑 Supports' });
+  });
+
+  state.selectedCards.clear();
+  renderCanvas();
+  renderConnections();
+  saveVersion('固化结论 Solidified conclusion');
+  showToast(t('toast-conclusion-done'));
+}
+
+function toggleConclusionExpand(id) {
+  // In a real app, this would expand/collapse the chain
+  showToast(t('toast-expand'));
+}
+
+/* ═══════════════════════════════════════════════════════
+   TIMELINE & VERSIONS
+   ═══════════════════════════════════════════════════════ */
+function saveVersion(label) {
+  let forkPoint = -1;
+  // Auto-branch: if viewing history, create a new branch from this point
+  if (state.isViewingHistory) {
+    const forkVersion = state.versions[state.currentVersion];
+    forkPoint = state.currentVersion;
+    const branchNum = state.nextBranchId;
+    const newBranch = {
+      id: branchNum,
+      name: 'branch-' + branchNum,
+      color: state.branchColors[state.branches.length % state.branchColors.length],
+      forkFrom: state.currentVersion,
+      forkLabel: forkVersion ? forkVersion.label : '',
+    };
+    state.nextBranchId++;
+    state.branches.push(newBranch);
+    state.currentBranch = newBranch.id;
+  }
+
+  const snapshot = {
+    cards: JSON.parse(JSON.stringify(state.cards)),
+    connections: JSON.parse(JSON.stringify(state.connections)),
+    label: label,
+    time: new Date(),
+    manual: false,
+    branchId: state.currentBranch,
+    forkPoint: forkPoint,
+  };
+
+  // Remove any "future" versions on this branch only
+  const currentBranchVersions = state.versions
+    .map((v, i) => ({ ...v, _idx: i }))
+    .filter(v => v.branchId === state.currentBranch);
+  if (currentBranchVersions.length > 0) {
+    const lastIdx = currentBranchVersions[currentBranchVersions.length - 1]._idx;
+    if (state.currentVersion < lastIdx) {
+      const removedIndices = new Set();
+      const keepVersions = [];
+      for (let i = 0; i < state.versions.length; i++) {
+        if (state.versions[i].branchId !== state.currentBranch || i <= state.currentVersion) {
+          keepVersions.push(state.versions[i]);
+        } else {
+          removedIndices.add(i);
+        }
+      }
+      state.versions = keepVersions;
+      // Remove child branches that forked from removed versions
+      state.branches = state.branches.filter(b => {
+        if (b.id === 0) return true;
+        return !removedIndices.has(b.forkFrom);
+      });
+    }
+  }
+
+  state.versions.push(snapshot);
+  state.currentVersion = state.versions.length - 1;
+  state.isViewingHistory = false;
+  document.getElementById('versionOverlay').classList.remove('show');
+  updateTimeline();
+}
+
+function saveManualVersion() {
+  document.getElementById('renameModal').classList.add('show');
+  document.getElementById('renameInput').focus();
+}
+
+function closeRenameModal() {
+  document.getElementById('renameModal').classList.remove('show');
+}
+
+function confirmRename() {
+  const name = document.getElementById('renameInput').value.trim() || t('rename-default');
+
+  // Handle history viewing same as saveVersion
+  if (state.isViewingHistory) {
+    const forkVersion = state.versions[state.currentVersion];
+    const newBranch = {
+      id: state.nextBranchId,
+      name: 'branch-' + state.nextBranchId,
+      color: state.branchColors[state.branches.length % state.branchColors.length],
+      forkFrom: state.currentVersion,
+      forkLabel: forkVersion ? forkVersion.label : '',
+    };
+    state.nextBranchId++;
+    state.branches.push(newBranch);
+    state.currentBranch = newBranch.id;
+
+    // Trim future versions on old branch
+    const oldBranchId = forkVersion.branchId;
+    const removedIndices = new Set();
+    const keepVersions = [];
+    for (let i = 0; i < state.versions.length; i++) {
+      if (state.versions[i].branchId !== oldBranchId || i <= state.currentVersion) {
+        keepVersions.push(state.versions[i]);
+      } else {
+        removedIndices.add(i);
+      }
+    }
+    state.versions = keepVersions;
+    state.branches = state.branches.filter(b => b.id === 0 || !removedIndices.has(b.forkFrom));
+  }
+
+  const snapshot = {
+    cards: JSON.parse(JSON.stringify(state.cards)),
+    connections: JSON.parse(JSON.stringify(state.connections)),
+    label: name,
+    time: new Date(),
+    manual: true,
+    branchId: state.currentBranch,
+  };
+  state.versions.push(snapshot);
+  state.currentVersion = state.versions.length - 1;
+  state.isViewingHistory = false;
+  document.getElementById('versionOverlay').classList.remove('show');
+  updateTimeline();
+  closeRenameModal();
+  document.getElementById('renameInput').value = '';
+  showToast(`${t('toast-version-marked')}: ${name}`);
+}
+
+function createBranchManual() {
+  document.getElementById('branchModal').classList.add('show');
+  document.getElementById('branchNameInput').focus();
+}
+
+function closeBranchModal() {
+  document.getElementById('branchModal').classList.remove('show');
+  document.getElementById('branchNameInput').value = '';
+}
+
+function confirmCreateBranch() {
+  const name = document.getElementById('branchNameInput').value.trim() || 'branch-' + state.nextBranchId;
+  const forkIdx = state.currentVersion;
+  const newBranch = {
+    id: state.nextBranchId,
+    name: name,
+    color: state.branchColors[state.branches.length % state.branchColors.length],
+    forkFrom: forkIdx,
+    forkLabel: state.versions[forkIdx] ? state.versions[forkIdx].label : '',
+  };
+  state.nextBranchId++;
+  state.branches.push(newBranch);
+  state.currentBranch = newBranch.id;
+
+  // Save a snapshot on the new branch at the fork point
+  const snapshot = {
+    cards: JSON.parse(JSON.stringify(state.cards)),
+    connections: JSON.parse(JSON.stringify(state.connections)),
+    label: t('branch-created'),
+    time: new Date(),
+    manual: false,
+    branchId: newBranch.id,
+    forkPoint: forkIdx,
+  };
+  state.versions.push(snapshot);
+  state.currentVersion = state.versions.length - 1;
+  state.isViewingHistory = false;
+  document.getElementById('versionOverlay').classList.remove('show');
+
+  closeBranchModal();
+  updateTimeline();
+  showToast(`${t('toast-branch-created')}: ${name}`);
+}
+
+function updateTimeline() {
+  // Update branch tag
+  const tag = document.getElementById('graphBranchTag');
+  if (tag) {
+    const currentBranch = state.branches.find(b => b.id === state.currentBranch);
+    tag.textContent = currentBranch ? currentBranch.name : 'main';
+  }
+
+  // Update FAB badge
+  const badge = document.getElementById('fabBadge');
+  if (badge) badge.textContent = state.versions.length;
+
+  // Render branch graph
+  renderBranchGraph();
+
+  // Update info
+  const current = state.versions[state.currentVersion];
+  if (current) {
+    const timeStr = current.time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const infoText = document.getElementById('graphInfoText');
+    if (infoText) infoText.textContent = `${current.label} · ${timeStr}`;
+  }
+
+  // Show/hide restore button
+  const restoreBtn = document.getElementById('graphRestoreBtn');
+  if (restoreBtn) restoreBtn.style.display = state.isViewingHistory ? 'flex' : 'none';
+}
+
+function renderBranchGraph() {
+  const container = document.getElementById('gitgraphBody');
+  if (!container) return;
+
+  const branches = state.branches;
+  const versions = state.versions;
+  if (versions.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--muted);font:12px/1 var(--font-body)">暂无版本记录</div>';
+    return;
+  }
+
+  const colW = 28;
+  const rowH = 40;
+  const padLeft = 20;
+  const padRight = 90;
+  const padTop = 16;
+  const padBottom = 20;
+  const nodeR = 6;
+
+  // Pass 1: assign unique lane to each branch (each branch gets its own column)
+  const laneMap = {};
+  branches.forEach((b, i) => { laneMap[b.id] = i; });
+
+  // Pass 2: assign row to each branch based on fork hierarchy
+  // Each branch occupies a contiguous block of rows.
+  // Child branches start after the fork point row within their parent.
+  const branchRowMap = {}; // branchId -> starting row index
+  const branchRowCount = {}; // branchId -> total rows this branch subtree occupies
+
+  function countSubtreeRows(branchId) {
+    const ownVersions = versions.filter(v => v.branchId === branchId);
+    const ownCount = Math.max(ownVersions.length, 1);
+    const children = branches.filter(b => b.forkFrom >= 0 && versions[b.forkFrom]?.branchId === branchId);
+    let childTotal = 0;
+    children.forEach(child => {
+      childTotal += countSubtreeRows(child.id);
+    });
+    branchRowCount[branchId] = ownCount + childTotal;
+    return branchRowCount[branchId];
+  }
+
+  function assignRows(branchId, startRow) {
+    branchRowMap[branchId] = startRow;
+    const ownVersions = versions.filter(v => v.branchId === branchId);
+    const ownCount = Math.max(ownVersions.length, 1);
+    const children = branches.filter(b => b.forkFrom >= 0 && versions[b.forkFrom]?.branchId === branchId);
+    let childRow = startRow + ownCount;
+    children.forEach(child => {
+      assignRows(child.id, childRow);
+      childRow += branchRowCount[child.id];
+    });
+  }
+
+  countSubtreeRows(0);
+  assignRows(0, 0);
+
+  // Compute row for each version: branch start row + position within branch
+  const versionRow = new Array(versions.length);
+  const branchVersionCount = {};
+  versions.forEach((v, i) => {
+    const bid = v.branchId;
+    if (branchVersionCount[bid] === undefined) branchVersionCount[bid] = 0;
+    versionRow[i] = branchRowMap[bid] + branchVersionCount[bid];
+    branchVersionCount[bid]++;
+  });
+
+  const maxRow = Math.max(...versionRow, 0);
+  const maxLane = Math.max(...Object.values(laneMap), 0);
+  const svgW = padLeft + (maxLane + 1) * colW + padRight;
+  const svgH = padTop + (maxRow + 1) * rowH + padBottom;
+
+  function nodeX(branchId) { return padLeft + laneMap[branchId] * colW + colW / 2; }
+  function nodeY(row) { return padTop + row * rowH; }
+
+  let svg = `<svg class="gitgraph-svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">`;
+
+  // Draw branch lane backgrounds
+  for (let lane = 0; lane <= maxLane; lane++) {
+    const lx = padLeft + lane * colW;
+    svg += `<rect x="${lx}" y="0" width="${colW}" height="${svgH}" fill="oklch(96% 0.002 240)" rx="0"/>`;
+  }
+
+  // Draw branch lines (vertical lines through all versions on that branch)
+  branches.forEach(branch => {
+    const bv = versions.map((v, i) => ({ v, i })).filter(x => x.v.branchId === branch.id);
+    if (bv.length === 0) return;
+    const x = nodeX(branch.id);
+    const y1 = nodeY(versionRow[bv[0].i]);
+    const y2 = nodeY(versionRow[bv[bv.length - 1].i]);
+    if (y1 === y2) {
+      svg += `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y1 + 10}" stroke="${branch.color}" stroke-width="2.5" stroke-linecap="round"/>`;
+    } else {
+      svg += `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${branch.color}" stroke-width="2.5" stroke-linecap="round"/>`;
+    }
+  });
+
+  // Draw fork connectors (L-shaped rounded bend from parent to child)
+  branches.forEach(branch => {
+    if (branch.id === 0 || branch.forkFrom < 0) return;
+    const forkIdx = branch.forkFrom;
+    if (forkIdx >= versions.length) return;
+    const parentBranchId = versions[forkIdx].branchId;
+    const px = nodeX(parentBranchId);
+    const py = nodeY(versionRow[forkIdx]);
+    const cx = nodeX(branch.id);
+    const childRow = branchRowMap[branch.id];
+    const cy = nodeY(childRow);
+    if (cx === px) {
+      svg += `<line x1="${px}" y1="${py}" x2="${cx}" y2="${cy}" stroke="${branch.color}" stroke-width="2" stroke-linecap="round"/>`;
+    } else {
+      const bendY = py + rowH * 0.5;
+      const r = Math.min(Math.abs(cx - px) * 0.4, rowH * 0.25, 12);
+      const dir = cx > px ? 1 : -1;
+      svg += `<path d="M${px},${py} L${px},${bendY - r} Q${px},${bendY} ${px + dir * r},${bendY} L${cx - dir * r},${bendY} Q${cx},${bendY} ${cx},${bendY + r} L${cx},${cy}" fill="none" stroke="${branch.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+  });
+
+  // Draw version nodes and labels
+  versions.forEach((v, i) => {
+    const branch = branches.find(b => b.id === v.branchId);
+    if (!branch) return;
+    const x = nodeX(v.branchId);
+    const y = nodeY(versionRow[i]);
+    const isCurrent = i === state.currentVersion;
+
+    if (isCurrent) {
+      svg += `<circle cx="${x}" cy="${y}" r="${nodeR + 5}" fill="none" stroke="${branch.color}" stroke-width="1.5" opacity="0.2"/>`;
+      svg += `<circle cx="${x}" cy="${y}" r="${nodeR + 2}" fill="${branch.color}" opacity="0.15"/>`;
+    }
+
+    const fill = isCurrent ? branch.color : 'var(--surface)';
+    const strokeW = isCurrent ? 2.5 : 2;
+    svg += `<circle cx="${x}" cy="${y}" r="${nodeR}" fill="${fill}" stroke="${branch.color}" stroke-width="${strokeW}" style="cursor:pointer" data-idx="${i}" onmouseenter="showGraphTooltip(event,${i})" onmouseleave="hideGraphTooltip()" onclick="jumpToVersion(${i})"/>`;
+
+    const labelX = padLeft + (maxLane + 1) * colW + 12;
+    const labelColor = isCurrent ? 'var(--fg)' : 'var(--muted)';
+    const labelWeight = isCurrent ? '600' : '400';
+    const timeStr = v.time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const displayLabel = v.manual ? v.label : (v.label.length > 18 ? v.label.substring(0, 18) + '…' : v.label);
+    svg += `<text x="${labelX}" y="${y + 4}" font-family="var(--font-body)" font-size="11" font-weight="${labelWeight}" fill="${labelColor}" style="cursor:pointer" onclick="jumpToVersion(${i})">${escapeHtml(displayLabel)}</text>`;
+    svg += `<text x="${labelX}" y="${y + 17}" font-family="var(--font-mono)" font-size="9" fill="var(--muted)">${timeStr}</text>`;
+
+    if (v.manual) {
+      svg += `<circle cx="${x + nodeR + 3}" cy="${y - nodeR - 1}" r="3" fill="var(--accent)" stroke="var(--surface)" stroke-width="1"/>`;
+    }
+  });
+
+  // Branch name labels at the top
+  branches.forEach(branch => {
+    const bv = versions.filter(v => v.branchId === branch.id);
+    if (bv.length === 0) return;
+    const x = nodeX(branch.id);
+    svg += `<text x="${x}" y="10" text-anchor="middle" font-family="var(--font-mono)" font-size="9" font-weight="600" fill="${branch.color}">${escapeHtml(branch.name)}</text>`;
+  });
+
+  svg += '</svg>';
+  container.innerHTML = svg;
+
+  const panel = document.getElementById('gitgraphPanel');
+  if (panel) {
+    const needed = svgW + 32;
+    panel.style.width = Math.max(280, Math.min(needed, window.innerWidth - 80)) + 'px';
+  }
+}
+
+function jumpToVersion(idx) {
+  if (idx < 0 || idx >= state.versions.length) return;
+  const version = state.versions[idx];
+  // Check if this version is the latest on its branch
+  if (version) {
+    const branchVersions = state.versions.filter(v => v.branchId === version.branchId);
+    const isLatestOnBranch = branchVersions.length > 0 &&
+      branchVersions[branchVersions.length - 1] === version;
+    state.isViewingHistory = !isLatestOnBranch;
+  } else {
+    state.isViewingHistory = idx !== state.versions.length - 1;
+  }
+  state.currentVersion = idx;
+
+  if (version) {
+    state.cards = JSON.parse(JSON.stringify(version.cards));
+    state.connections = JSON.parse(JSON.stringify(version.connections));
+    state.currentBranch = version.branchId;
+    renderCanvas();
+    renderConnections();
+    renderInbox();
+
+    const overlay = document.getElementById('versionOverlay');
+    if (state.isViewingHistory) {
+      const ago = getTimeAgo(version.time);
+      document.getElementById('versionLabel').textContent = t('version-label', {ago: ago, label: version.label});
+      overlay.classList.add('show');
+    } else {
+      overlay.classList.remove('show');
+    }
+    updateTimeline();
+  }
+}
+
+function switchBranch(branchId) {
+  const branch = state.branches.find(b => b.id === branchId);
+  if (!branch) return;
+  state.currentBranch = branchId;
+  // Find the latest version on this branch
+  const branchVersions = state.versions
+    .map((v, i) => ({ ...v, _idx: i }))
+    .filter(v => v.branchId === branchId);
+  if (branchVersions.length > 0) {
+    const latest = branchVersions[branchVersions.length - 1];
+    state.currentVersion = latest._idx;
+    state.cards = JSON.parse(JSON.stringify(latest.cards));
+    state.connections = JSON.parse(JSON.stringify(latest.connections));
+    state.isViewingHistory = false;
+    renderCanvas();
+    renderConnections();
+    renderInbox();
+  }
+  document.getElementById('versionOverlay').classList.remove('show');
+  closeGraphBranchDropdown();
+  updateTimeline();
+  showToast(`${t('toast-switched-branch')}: ${branch.name}`);
+}
+
+function toggleGraphBranchDropdown() {
+  const dropdown = document.getElementById('graphBranchDropdown');
+  const isOpen = dropdown.classList.contains('show');
+  if (isOpen) {
+    closeGraphBranchDropdown();
+    return;
+  }
+  dropdown.innerHTML = `<div class="branch-list"><div class="branch-list-title">${t('branch-list-title')}</div>${state.branches.map(b => {
+    const count = state.versions.filter(v => v.branchId === b.id).length;
+    const active = b.id === state.currentBranch;
+    return `<div class="branch-menu-item${active ? ' active' : ''}" onclick="switchBranch(${b.id})">
+      <span class="branch-menu-dot" style="background:${b.color}"></span>
+      <span class="branch-menu-name">${escapeHtml(b.name)}</span>
+      <span class="branch-menu-count">${count}</span>
+    </div>`;
+  }).join('')}</div><div class="branch-actions">
+    <div class="branch-menu-item" onclick="renameBranch()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      <span class="branch-menu-name">${t('branch-rename')}</span>
+    </div>
+    ${state.currentBranch !== 0 ? `<div class="branch-menu-item" onclick="deleteBranch()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;color:oklch(55% 0.15 25)"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+      <span class="branch-menu-name" style="color:oklch(55% 0.15 25)">${t('branch-delete')}</span>
+    </div>` : ''}
+  </div>`;
+  dropdown.classList.add('show');
+}
+
+function closeGraphBranchDropdown() {
+  document.getElementById('graphBranchDropdown').classList.remove('show');
+}
+
+function toggleGitgraphPanel() {
+  const panel = document.getElementById('gitgraphPanel');
+  const fab = document.getElementById('gitgraphFab');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    positionGitgraphPanel();
+    renderBranchGraph();
+  }
+}
+
+function positionGitgraphPanel() {
+  const fab = document.getElementById('gitgraphFab');
+  const panel = document.getElementById('gitgraphPanel');
+  const fabRect = fab.getBoundingClientRect();
+  panel.style.right = 'auto';
+  panel.style.bottom = 'auto';
+  const dropdownWidth = 160;
+  const totalWidth = panel.offsetWidth + dropdownWidth;
+  let panelLeft = Math.max(8 + dropdownWidth, Math.min(fabRect.left, window.innerWidth - panel.offsetWidth - 8));
+  let panelTop = fabRect.top - panel.offsetHeight - 8;
+  if (panelTop < 8) panelTop = fabRect.bottom + 8;
+  panel.style.left = panelLeft + 'px';
+  panel.style.top = panelTop + 'px';
+}
+
+// Draggable gitgraph FAB
+(function() {
+  const fab = document.getElementById('gitgraphFab');
+  let dragging = false, moved = false;
+  let startX, startY, startLeft, startTop;
+
+  function onDown(e) {
+    e.preventDefault();
+    dragging = true;
+    moved = false;
+    const rect = fab.getBoundingClientRect();
+    fab.style.top = rect.top + 'px';
+    fab.style.left = rect.left + 'px';
+    fab.style.bottom = 'auto';
+    fab.style.right = 'auto';
+    startX = e.clientX;
+    startY = e.clientY;
+    startLeft = rect.left;
+    startTop = rect.top;
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  function onMove(e) {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+    fab.style.left = Math.max(0, Math.min(startLeft + dx, window.innerWidth - 44)) + 'px';
+    fab.style.top = Math.max(0, Math.min(startTop + dy, window.innerHeight - 44)) + 'px';
+  }
+
+  function onUp() {
+    dragging = false;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    if (!moved) {
+      const panel = document.getElementById('gitgraphPanel');
+      if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+      } else {
+        toggleGitgraphPanel();
+      }
+    } else if (document.getElementById('gitgraphPanel').classList.contains('open')) {
+      positionGitgraphPanel();
+    }
+  }
+
+  fab.addEventListener('mousedown', onDown);
+  fab.addEventListener('touchstart', e => {
+    const touch = e.touches[0];
+    onDown({ preventDefault: () => e.preventDefault(), clientX: touch.clientX, clientY: touch.clientY });
+  }, { passive: false });
+})();
+
+function showGraphTooltip(event, idx) {
+  const v = state.versions[idx];
+  if (!v) return;
+  const branch = state.branches.find(b => b.id === v.branchId);
+  const timeStr = v.time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const tip = document.getElementById('gitgraphTooltip');
+  tip.innerHTML = `<strong>${v.label}</strong><br>${branch ? branch.name : '?'} · ${timeStr}${v.manual ? ' · ' + t('graph-manual') : ''}`;
+  tip.style.left = (event.clientX + 12) + 'px';
+  tip.style.top = (event.clientY - 10) + 'px';
+  tip.classList.add('show');
+}
+
+function hideGraphTooltip() {
+  document.getElementById('gitgraphTooltip').classList.remove('show');
+}
+
+function renameBranch() {
+  closeGraphBranchDropdown();
+  const branch = state.branches.find(b => b.id === state.currentBranch);
+  if (!branch) return;
+  const newName = prompt(t('branch-rename-prompt'), branch.name);
+  if (newName && newName.trim()) {
+    branch.name = newName.trim();
+    updateTimeline();
+  }
+}
+
+function deleteBranch() {
+  closeGraphBranchDropdown();
+  if (state.currentBranch === 0) return;
+  const branch = state.branches.find(b => b.id === state.currentBranch);
+  if (!branch) return;
+  if (!confirm(t('branch-delete-confirm', { name: branch.name }))) return;
+
+  // Remove versions on this branch
+  state.versions = state.versions.filter(v => v.branchId !== state.currentBranch);
+
+  // Remove child branches that forked from deleted versions
+  const remainingIndices = new Set(state.versions.map((_, i) => i));
+  state.branches = state.branches.filter(b => {
+    if (b.id === 0 || b.id === state.currentBranch) return b.id !== state.currentBranch;
+    return remainingIndices.has(b.forkFrom) || b.forkFrom < 0;
+  });
+
+  // Remove the branch itself
+  state.branches = state.branches.filter(b => b.id !== state.currentBranch);
+
+  // Switch to main branch
+  state.currentBranch = 0;
+  const mainVersions = state.versions
+    .map((v, i) => ({ ...v, _idx: i }))
+    .filter(v => v.branchId === 0);
+  if (mainVersions.length > 0) {
+    const latest = mainVersions[mainVersions.length - 1];
+    state.currentVersion = latest._idx;
+    state.cards = JSON.parse(JSON.stringify(latest.cards));
+    state.connections = JSON.parse(JSON.stringify(latest.connections));
+  } else {
+    state.currentVersion = -1;
+  }
+  state.isViewingHistory = false;
+  document.getElementById('versionOverlay').classList.remove('show');
+  renderCanvas();
+  renderConnections();
+  renderInbox();
+  updateTimeline();
+  showToast(t('toast-branch-deleted', { name: branch.name }));
+}
+
+function restoreVersion() {
+  const version = state.versions[state.currentVersion];
+  if (version) {
+    state.currentBranch = version.branchId;
+  }
+  saveVersion(t('restored-label', {label: version ? version.label : ''}));
+  state.isViewingHistory = false;
+  document.getElementById('versionOverlay').classList.remove('show');
+  showToast(t('toast-restored'));
+}
+
+function getTimeAgo(date) {
+  const mins = Math.round((Date.now() - date.getTime()) / 60000);
+  if (mins < 1) return t('time-just-now');
+  if (mins < 60) return t('time-mins-ago', { n: mins });
+  const hrs = Math.round(mins / 60);
+  return t('time-hours-ago', { n: hrs });
+}
+
+/* ═══════════════════════════════════════════════════════
+   ZOOM & PAN
+   ═══════════════════════════════════════════════════════ */
+function zoomCanvas(delta) {
+  state.zoom = Math.max(0.3, Math.min(2, state.zoom + delta));
+  applyTransform();
+  document.getElementById('zoomDisplay').textContent = Math.round(state.zoom * 100) + '%';
+}
+
+function fitCanvas() {
+  state.zoom = 1;
+  state.pan = { x: 0, y: 0 };
+  applyTransform();
+  document.getElementById('zoomDisplay').textContent = '100%';
+}
+
+function applyTransform() {
+  const canvas = document.getElementById('canvas');
+  canvas.style.transform = `translate(${state.pan.x}px, ${state.pan.y}px) scale(${state.zoom})`;
+}
+
+// Pan with middle mouse or space+drag
+let isPanning = false;
+let panStart = { x: 0, y: 0 };
+
+document.getElementById('canvasArea')?.addEventListener('mousedown', e => {
+  if (e.button === 1 || (e.button === 0 && e.target.id === 'canvasArea' || e.target.id === 'canvas' || e.target.id === 'canvasInner')) {
+    if (e.target.closest('.canvas-card') || e.target.closest('.conn-label')) return;
+    // Selection box — clear previous unless Shift held
+    if (!e.shiftKey) state.selectedCards.clear();
+    renderCanvas();
+    const rect = document.getElementById('canvasArea').getBoundingClientRect();
+    const cx = (e.clientX - rect.left - state.pan.x) / state.zoom;
+    const cy = (e.clientY - rect.top - state.pan.y) / state.zoom;
+    state.selectionStart = { x: cx, y: cy };
+  }
+});
+
+// Wheel zoom
+document.getElementById('canvasArea')?.addEventListener('wheel', e => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? -0.05 : 0.05;
+  zoomCanvas(delta);
+}, { passive: false });
+
+/* ═══════════════════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+   ═══════════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  // Ctrl+Shift+C → Capture
+  if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+    e.preventDefault();
+    openCapture();
+    return;
+  }
+  // Ctrl+S → Save version
+  if (e.ctrlKey && e.key === 's') {
+    e.preventDefault();
+    saveManualVersion();
+    return;
+  }
+  // Escape → Close panels
+  if (e.key === 'Escape') {
+    closeCapture();
+    closeAiPanel();
+    closeRenameModal();
+    closeBranchModal();
+    state.selectedCards.clear();
+    renderCanvas();
+    return;
+  }
+  // Delete → Delete selected
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (state.selectedCards.size > 0 && !document.querySelector('.capture-popup.open')) {
+      e.preventDefault();
+      contextAction('delete');
+    }
+  }
+  // Ctrl+A → Select all canvas cards
+  if (e.ctrlKey && e.key === 'a') {
+    if (!document.querySelector('.capture-popup.open')) {
+      e.preventDefault();
+      state.cards.filter(c => c.inCanvas).forEach(c => state.selectedCards.add(c.id));
+      renderCanvas();
+    }
+  }
+});
+
+/* ═══════════════════════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════════════════════ */
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+/* ═══════════════════════════════════════════════════════
+   TWEAKS PANEL
+   ═══════════════════════════════════════════════════════ */
+function toggleTweaks() {
+  const panel = document.getElementById('tweaksPanel');
+  panel.classList.toggle('open');
+}
+
+// Draggable tweaks panel
+(function() {
+  const panel = document.getElementById('tweaksPanel');
+  const handle = document.getElementById('tweaksDragHandle');
+  let dragging = false, startX, startY, startLeft, startTop;
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragging = true;
+    const rect = panel.getBoundingClientRect();
+    // Always switch from CSS bottom/right to inline top/left on first drag
+    panel.style.top = rect.top + 'px';
+    panel.style.left = rect.left + 'px';
+    panel.style.bottom = 'auto';
+    panel.style.right = 'auto';
+    startX = e.clientX;
+    startY = e.clientY;
+    startLeft = rect.left;
+    startTop = rect.top;
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  function onMove(e) {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    panel.style.left = (startLeft + dx) + 'px';
+    panel.style.top = (startTop + dy) + 'px';
+  }
+
+  function onUp() {
+    dragging = false;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+})();
+
+// Close tweaks when clicking outside
+document.addEventListener('mousedown', e => {
+  const panel = document.getElementById('tweaksPanel');
+  const fab = document.getElementById('tweaksFab');
+  if (panel.classList.contains('open') && !panel.contains(e.target) && !fab.contains(e.target)) {
+    panel.classList.remove('open');
+  }
+});
+
+/* ═══════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════ */
+init();
+// Re-render branch graph on resize
+const gitgraphBody = document.getElementById('gitgraphBody');
+if (gitgraphBody) {
+  new ResizeObserver(() => { renderBranchGraph(); positionGitgraphPanel(); }).observe(gitgraphBody);
+}
+</script>
+</body>
+</html>

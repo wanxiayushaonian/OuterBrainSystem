@@ -1,0 +1,47 @@
+/* ═══════════════════════════════════════════════════════
+   Modern Minimal Direction — Linear / Vercel
+   Base: reset, design tokens, typography
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg: oklch(99% 0.002 240);
+  --surface: oklch(100% 0 0);
+  --fg: oklch(18% 0.012 250);
+  --muted: oklch(54% 0.012 250);
+  --border: oklch(92% 0.005 250);
+  --accent: oklch(58% 0.18 255);
+  --accent-light: oklch(92% 0.04 255);
+  --accent-dim: oklch(48% 0.12 255);
+  --danger: oklch(55% 0.2 25);
+  --success: oklch(55% 0.16 145);
+  --warning: oklch(65% 0.15 75);
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --radius: 8px;
+  --radius-sm: 5px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.04);
+  --shadow-md: 0 4px 12px oklch(0% 0 0 / 0.06);
+  --shadow-lg: 0 8px 30px oklch(0% 0 0 / 0.08);
+  --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Global scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(72% 0.01 250 / 0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(60% 0.02 250 / 0.5); }
+::-webkit-scrollbar-corner { background: transparent; }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.5 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Helper classes ── */
+.hidden { display: none !important; }
+.mono { font-family: var(--font-mono); }

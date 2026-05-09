@@ -1,0 +1,120 @@
+/* ═══════════════════════════════════════════════════════
+   Session Tabs Styles
+   ═══════════════════════════════════════════════════════ */
+
+#sessionTabs {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.session-tabs-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.session-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.session-tab:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.session-tab.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.session-title {
+  flex: 1;
+  font: 12px/1 var(--font-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-close {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: currentColor;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  opacity: 0.6;
+  transition: all var(--transition);
+}
+
+.session-close:hover {
+  opacity: 1;
+  background: oklch(0% 0 0 / 0.1);
+}
+
+.session-tab.active .session-close:hover {
+  background: oklch(100% 0 0 / 0.2);
+}
+
+.session-new {
+  padding: 6px 12px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: 12px/1 var(--font-body);
+  color: var(--muted);
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.session-new:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* ── Rename input ──────────────────────────────────────── */
+.session-rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  font: 12px/1 var(--font-body);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--fg);
+  outline: none;
+}
+
+/* ── Drag and drop ─────────────────────────────────────── */
+.session-tab.dragging {
+  opacity: 0.5;
+}
+
+.session-tab.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}

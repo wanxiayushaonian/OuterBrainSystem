@@ -49,16 +49,53 @@ function escapeHtml(str: string | null | undefined): string {
 }
 
 function formatReply(text: string | null | undefined): string {
-  let html = escapeHtml(text);
+  if (!text) return '';
+
+  // Extract inline code blocks before HTML escaping to preserve backticks
+  const codeBlocks: string[] = [];
+  let processed = text
+    .replace(/&#96;/g, '`')
+    .replace(/`([\s\S]+?)`/g, (_match, code) => {
+      codeBlocks.push(code.trim());
+      return `\x00CODE${codeBlocks.length - 1}\x00`;
+    });
+
+  let html = escapeHtml(processed);
+
+  // Parse markdown tables before line-level formatting
+  html = html.replace(/((?:^\|.+\|$\n?)+)/gm, (tableBlock) => {
+    const rows = tableBlock.trim().split('\n').filter(r => r.trim());
+    if (rows.length < 2) return tableBlock;
+
+    // Find separator row (|---|---|) — must contain at least one dash
+    const sepIdx = rows.findIndex(r => /^\|(?:[\s\-:]*-[\s\-:]*\|)+$/.test(r.trim()));
+    if (sepIdx < 0) return tableBlock;
+
+    const parseCells = (row: string): string[] =>
+      row.split('|').slice(1, -1).map(c => c.trim());
+
+    const headers = parseCells(rows[0]);
+    const bodyRows = rows.slice(sepIdx + 1).map(parseCells);
+
+    const thead = `<thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+    const tbody = `<tbody>${bodyRows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    return `<table>${thead}${tbody}</table>`;
+  });
+
   html = html.replace(/^### (.+)$/gm, '<strong style="font-size:13px">$1</strong>');
   html = html.replace(/^## (.+)$/gm, '<strong style="font-size:14px">$1</strong>');
   html = html.replace(/^# (.+)$/gm, '<strong style="font-size:15px">$1</strong>');
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/`(.+?)`/g, '<code>$1</code>');
   html = html.replace(/^---$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:8px 0">');
   html = html.replace(/^[*-] (.+)$/gm, '• $1');
   html = html.replace(/\n/g, '<br>');
+
+  // Restore inline code blocks
+  html = html.replace(/\x00CODE(\d+)\x00/g, (_match, idx) => {
+    return `<code>${escapeHtml(codeBlocks[parseInt(idx)])}</code>`;
+  });
+
   return html;
 }
 
@@ -74,6 +111,13 @@ const TOOL_PERMISSIONS: Record<string, ToolPermission> = {
   delete_connection: 'destructive',
   search_cards: 'read_only',
   analyze_canvas: 'read_only',
+  // L3 Agent tools
+  challenge_thinking: 'write',
+  analyze_flow: 'write',
+  synthesize_cards: 'write',
+  discover_relations: 'write',
+  debate_mode: 'write',
+  research_path: 'write',
 };
 
 // ── Approval dialog ──────────────────────────────────────
@@ -170,6 +214,18 @@ async function executeTool(toolName: string, toolInput: Record<string, unknown>)
       return executeAddConnection(toolInput);
     case 'delete_connection':
       return executeDeleteConnection(toolInput);
+    case 'search_cards':
+    case 'analyze_canvas':
+      // Read-only tools — no canvas mutation needed
+      return undefined;
+    // L3 Agent tools — create card from agent result
+    case 'challenge_thinking':
+    case 'analyze_flow':
+    case 'synthesize_cards':
+    case 'discover_relations':
+    case 'debate_mode':
+    case 'research_path':
+      return executeAgentResult(toolName, toolInput);
     default:
       return undefined;
   }
@@ -280,6 +336,90 @@ function executeDeleteConnection(toolInput: Record<string, unknown>): undefined 
   }
   scheduleSave();
   return undefined;
+}
+
+function executeAgentResult(toolName: string, toolInput: Record<string, unknown>): number | undefined {
+  // L3 agent tools return { action, card, message } or { action, suggestions }
+  const result = toolInput as any;
+
+  // Handle suggest_connections (Relation Discoverer) — just create suggested connections
+  if (result.action === 'suggest_connections' && result.suggestions) {
+    const suggestions = result.suggestions as Array<{target_id: number; label: string; reason: string}>;
+    for (const sug of suggestions) {
+      if (state.cards.find(c => c.id === sug.target_id)) {
+        // Avoid duplicate connections
+        const exists = state.connections.some(
+          c => (c.from === sug.target_id || c.to === sug.target_id) && c.label === sug.label
+        );
+        if (!exists) {
+          state.connections.push({
+            from: sug.target_id,
+            to: result.metadata?.target_card_id || sug.target_id,
+            label: sug.label,
+          });
+        }
+      }
+    }
+    if (!isStreaming) {
+      renderCanvas();
+      renderConnections();
+    }
+    scheduleSave();
+    return undefined;
+  }
+
+  const card = result.card;
+  if (!card || !card.text) {
+    console.warn(`Agent tool ${toolName} returned no card:`, result);
+    return undefined;
+  }
+
+  pushUndo();
+  const COLS = 3;
+  const COL_SPACING = 280;
+  const ROW_SPACING = 180;
+  const refX = 200;
+  const refY = 200;
+  const col = toolBatchIndex % COLS;
+  const row = Math.floor(toolBatchIndex / COLS);
+  const x = Math.round(refX + (col === 0 && toolBatchIndex > 0 ? COL_SPACING : 0) + col * 20);
+  const y = Math.round(refY + row * ROW_SPACING);
+  toolBatchIndex++;
+
+  const id = state.nextId++;
+  state.cards.push({
+    id,
+    text: card.text,
+    source: `AI ${toolName}`,
+    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+    status: card.status || 'pending',
+    inCanvas: true,
+    x: card.x !== undefined ? card.x : x,
+    y: card.y !== undefined ? card.y : y,
+    type: card.type || 'note',
+    metadata: card.metadata || {},
+  });
+  newCardIds.push(id);
+
+  // Create connections if chain_ids present (for conclusion cards)
+  if (card.metadata?.chain_ids) {
+    for (const chainId of card.metadata.chain_ids) {
+      if (state.cards.find(c => c.id === chainId)) {
+        state.connections.push({
+          from: chainId,
+          to: id,
+          label: 'supports',
+        });
+      }
+    }
+  }
+
+  if (!isStreaming) {
+    renderCanvas();
+    renderConnections();
+  }
+  scheduleSave();
+  return id;
 }
 
 // ── Chat rendering ──────────────────────────────────────
@@ -456,7 +596,7 @@ async function renderChatHistory(): Promise<void> {
   messages.scrollTop = messages.scrollHeight;
 }
 
-function appendToLastAiMessage(text: string): void {
+function appendToLastAiMessage(fullText: string): void {
   const messages = document.getElementById('aiMessages');
   if (!messages) return;
 
@@ -477,7 +617,9 @@ function appendToLastAiMessage(text: string): void {
     textContainer.className = 'ai-text-content';
     body.insertBefore(textContainer, body.firstChild);
   }
-  textContainer.innerHTML += formatReply(text);
+  // Re-format the entire accumulated text so partial markdown tokens
+  // get properly matched when their closing delimiter arrives.
+  textContainer.innerHTML = formatReply(fullText);
   messages.scrollTop = messages.scrollHeight;
 }
 
@@ -611,7 +753,7 @@ async function sendStreamingMessage(text: string): Promise<void> {
           }
 
           fullText += chunk.content || '';
-          appendToLastAiMessage(chunk.content || '');
+          appendToLastAiMessage(fullText);
         } else if (chunk.type === 'thinking') {
           // Start or continue thinking block
           if (thinkingStartTime === 0) {
@@ -701,7 +843,8 @@ async function sendStreamingMessage(text: string): Promise<void> {
             setStreamingUI(false);
           }
         } else if (chunk.type === 'error') {
-          appendToLastAiMessage(`\n\n[错误: ${chunk.error}]`);
+          fullText += `\n\n[错误: ${chunk.error}]`;
+          appendToLastAiMessage(fullText);
           isStreaming = false;
           setStreamingUI(false);
         }
@@ -709,10 +852,12 @@ async function sendStreamingMessage(text: string): Promise<void> {
     );
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      appendToLastAiMessage('\n\n⏸ 已暂停');
+      fullText += '\n\n⏸ 已暂停';
+      appendToLastAiMessage(fullText);
     } else {
       console.error('Streaming failed:', error);
-      appendToLastAiMessage('\n\n抱歉，AI 暂时无法响应。请稍后再试。');
+      fullText += '\n\n抱歉，AI 暂时无法响应。请稍后再试。';
+      appendToLastAiMessage(fullText);
     }
     isStreaming = false;
     setStreamingUI(false);

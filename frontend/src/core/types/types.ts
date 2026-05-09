@@ -36,6 +36,7 @@ export interface CardGroup {
   cardIds: number[];
   color: string;
   collapsed: boolean;
+  locked: boolean;
 }
 
 export interface Branch {

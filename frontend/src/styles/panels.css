@@ -529,6 +529,26 @@
   border-radius: 4px;
   font: 11px/1 var(--font-mono);
 }
+.ai-msg.ai table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font: 12px/1.5 var(--font-body);
+  width: 100%;
+  display: block;
+  overflow-x: auto;
+}
+.ai-msg.ai th, .ai-msg.ai td {
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  text-align: left;
+}
+.ai-msg.ai th {
+  background: oklch(0% 0 0 / 0.05);
+  font-weight: 600;
+}
+.ai-msg.ai tr:hover td {
+  background: oklch(0% 0 0 / 0.03);
+}
 .ai-msg .msg-action {
   display: inline-flex; align-items: center; gap: 4px;
   font: 11px/1 var(--font-body);

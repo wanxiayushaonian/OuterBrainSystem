@@ -1,27 +1,26 @@
-"""Chat API endpoints using provider-neutral runtime."""
-import os
+"""Chat API endpoints — delegates to the working client.py system."""
 import json
 import logging
-from dataclasses import asdict
-from fastapi import APIRouter, HTTPException
+import asyncio
+from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any
 
-from src.core import (
-    ProviderRegistry,
-    ToolRegistry,
-    SessionManager,
-    Message,
-    CanvasContext,
-    StreamChunk
+from src.llm.client import chat_multi_stream, get_cfg, CANVAS_TOOLS, execute_agent_tool, L3_TOOL_NAMES
+from src.llm.router import (
+    _tool_result_lock,
+    _tool_result_buffers,
+    _tool_result_events,
+    _wait_for_tool_result,
 )
+from src.core.session import SessionStorage
+from src.core.session.manager import SessionManager
+from src.core.runtime.types import Message, ToolCall
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
-
-MAX_AGENT_ITERATIONS = 10
 
 
 class ChatRequest(BaseModel):
@@ -32,264 +31,207 @@ class ChatRequest(BaseModel):
     context: Dict[str, Any]
 
 
-async def stream_chat_response(
-    session_id: str,
-    provider_id: str,
-    user_input: str,
-    canvas_context: CanvasContext,
-    session_manager: SessionManager
-):
-    """Stream chat response with SSE - implements agent loop for multi-turn tool calls."""
-    try:
-        # Get session
-        session = await session_manager.get_session(session_id)
-        if not session:
-            yield f"data: {json.dumps({'type': 'error', 'error': 'Session not found'})}\n\n"
-            return
-
-        # Create runtime with API key from environment
-        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
-        if not api_key:
-            yield f"data: {json.dumps({'type': 'error', 'error': 'ANTHROPIC_API_KEY not set'})}\n\n"
-            return
-
-        base_url = os.environ.get("ANTHROPIC_BASE_URL")
-        model = os.environ.get("ANTHROPIC_MODEL")
-
-        runtime = ProviderRegistry.create_runtime(
-            provider_id,
-            api_key=api_key,
-            base_url=base_url,
-            model=model
-        )
-
-        # Add user message to session
-        user_message = Message(role="user", content=user_input)
-        await session_manager.add_message(session_id, user_message)
-
-        # Get tool schemas
-        tools = ToolRegistry.get_schemas()
-
-        # ── Agent loop ────────────────────────────────────
-        # Accumulate all content and tool calls across iterations
-        all_assistant_content = ""
-        all_tool_calls = []
-
-        for iteration in range(MAX_AGENT_ITERATIONS):
-            assistant_content = ""
-            tool_calls = []
-
-            # Stream one turn (filter out intermediate done events)
-            async for chunk in runtime.stream_chat(
-                messages=session.messages,
-                tools=tools,
-                context=canvas_context
-            ):
-                # Skip done from stream_chat — we send it once at the end
-                if chunk.type == "done":
-                    continue
-
-                # Send chunk to frontend
-                yield f"data: {json.dumps(asdict(chunk))}\n\n"
-
-                # Accumulate
-                if chunk.type == "text":
-                    assistant_content += chunk.content or ""
-                elif chunk.type == "tool_call" and chunk.tool_call:
-                    tool_calls.append(chunk.tool_call)
-
-            # Accumulate across iterations
-            if assistant_content:
-                all_assistant_content += assistant_content
-            if tool_calls:
-                all_tool_calls.extend(tool_calls)
-
-            # If no tool calls, agent turn is complete
-            if not tool_calls:
-                break
-
-            # Execute tools and collect results
-            tool_results = []
-            for tool_call in tool_calls:
-                result = await runtime.execute_tool(tool_call, canvas_context)
-                tool_results.append(result)
-
-                # Send tool result to frontend
-                yield f"data: {json.dumps({'type': 'tool_result', 'tool_result': asdict(result)})}\n\n"
-
-            # Save tool results as user message (Anthropic format)
-            tool_message = Message(
-                role="user",
-                tool_results=tool_results
-            )
-            await session_manager.add_message(session_id, tool_message)
-
-            # Refresh session for next iteration
-            session = await session_manager.get_session(session_id)
-            if not session:
-                break
-
-        # Save final assistant message with all content and tool calls
-        if all_assistant_content or all_tool_calls:
-            assistant_message = Message(
-                role="assistant",
-                content=all_assistant_content if all_assistant_content else None,
-                tool_calls=all_tool_calls if all_tool_calls else None
-            )
-            await session_manager.add_message(session_id, assistant_message)
-
-        # Send done once at the end of the entire agent loop
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
-
-        # Cleanup
-        await runtime.cleanup()
-
-    except Exception as e:
-        logger.exception("Error in stream_chat_response for session %s", session_id)
-        yield f"data: {json.dumps({'type': 'error', 'error': 'Internal server error'})}\n\n"
+MAX_ROUNDS = 3
 
 
 @router.post("/stream")
 async def chat_stream(request: ChatRequest):
-    """Stream chat endpoint with Agent Router support.
+    """Streaming chat endpoint — delegates to client.py system."""
+    cfg = get_cfg()
+    session_id = request.session_id
 
-    Returns:
-        SSE stream of chat responses
-    """
-    from src.core.session import SessionStorage
-    from src.core.context_manager import ContextManager
-    from src.core.agent_router import AgentRouter
-    from src.agents.distillation_agent import DistillationAgent
-    from src.core import ProviderRegistry
-
+    # ── Save user message to session ──
     storage = SessionStorage()
     await storage.init_db()
     session_manager = SessionManager(storage)
+    await session_manager.add_message(session_id, Message(
+        role="user",
+        content=request.input,
+    ))
 
-    # Use Context Manager for hybrid loading
+    # Build canvas context
     ctx = request.context
-    context_manager = ContextManager()
+    cards = ctx.get("cards", [])
+    connections = ctx.get("connections", [])
+    groups = ctx.get("groups", [])
 
-    # Load context with hybrid strategy
-    hybrid_context = context_manager.load_context_from_state(
-        state=ctx,
-        viewport=ctx.get("viewport", {})
-    )
+    context_parts = []
+    if cards:
+        card_lines = []
+        for c in cards:
+            status = f" [{c.get('status', '')}]" if c.get('status') else ""
+            question = f" ?\"{c.get('openQuestion', '')}\"" if c.get('openQuestion') else ""
+            card_lines.append(f"  #{c['id']}: {c['text']}{status}{question}")
+        context_parts.append(f"当前画布上的卡片 ({len(cards)} 张):\n" + "\n".join(card_lines))
 
-    # Convert to runtime CanvasContext with peripheral cards
-    canvas_context = CanvasContext(
-        cards=hybrid_context.core_cards,
-        connections=hybrid_context.connections,
-        groups=hybrid_context.groups,
-        active_labels=hybrid_context.active_labels,
-        peripheral_cards=[asdict(p) for p in hybrid_context.peripheral_cards]
-    )
+    if connections:
+        conn_lines = [f"  #{c['from']} --[{c['label']}]--> #{c['to']}" for c in connections]
+        context_parts.append(f"卡片之间的连接 ({len(connections)} 条):\n" + "\n".join(conn_lines))
 
-    # Log context stats for monitoring
-    logger.info(
-        "Context loaded: %d core cards, %d peripheral cards, %d total",
-        len(hybrid_context.core_cards),
-        len(hybrid_context.peripheral_cards),
-        hybrid_context.total_cards
-    )
+    if groups:
+        group_lines = [f"  {g['name']}: 卡片 {g.get('cardIds', g.get('card_ids', []))}" for g in groups]
+        context_parts.append(f"卡片分组 ({len(groups)} 个):\n" + "\n".join(group_lines))
 
-    # Check if Agent Router should be used (keyword detection)
-    # Phase 2: Simple check for distillation keywords
-    user_input_lower = request.input.lower()
-    distillation_keywords = ["提炼", "总结", "浓缩", "distill", "summarize"]
-    use_agent_router = any(kw in user_input_lower for kw in distillation_keywords)
+    canvas_summary = "\n\n".join(context_parts) if context_parts else "画布当前为空。"
 
-    if use_agent_router:
-        logger.info("Using Agent Router for request")
-        # Create runtime for agents
-        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
-        if not api_key:
-            return StreamingResponse(
-                _error_stream("ANTHROPIC_API_KEY not set"),
-                media_type="text/event-stream"
-            )
+    active_labels = ctx.get("active_labels", [])
+    labels_hint = ""
+    if active_labels:
+        labels_hint = "\n\n可用的关系类型（创建连接时必须从中选择）：\n" + "\n".join(f"  - {l}" for l in active_labels)
 
-        base_url = os.environ.get("ANTHROPIC_BASE_URL")
-        model = os.environ.get("ANTHROPIC_MODEL")
-        runtime = ProviderRegistry.create_runtime(
-            request.provider_id,
-            api_key=api_key,
-            base_url=base_url,
-            model=model
-        )
+    system_prompt = f"""你是 Nexus 外脑思维链路管理系统的 AI 助手。你可以看到用户画布上的所有卡片、连接和分组。
 
-        # Initialize Agent Router
-        router = AgentRouter()
-        router.register_agent(DistillationAgent(runtime))
+你的职责：
+- 帮助用户理解和分析他们的思维结构
+- 回答关于画布内容的任何问题
+- 提供洞察、质疑、建议和新的思考角度
+- 帮助用户发现思维中的盲点和逻辑漏洞
+- 用中文回答，技术术语可用英文
 
-        # Get session for conversation history
-        session = await session_manager.get_session(request.session_id)
-        session_messages = session.messages if session else []
+重要：当你发现需要创建新卡片、建立连接、或设置开放问题时，直接使用工具操作画布，不要只是建议用户去做。
+{labels_hint}
 
-        # Route to appropriate agent
+## 响应规则（必须遵守）
+- 画布状态已在下方提供，不要调用 analyze_canvas 等分析工具重复分析
+- 收到用户消息后，直接基于已有画布状态给出回答或执行操作
+- 每次回复最多使用 1-2 个工具调用，然后必须输出文字回复
+- 绝对不要在没有输出文字的情况下连续发起多轮工具调用
+- 如果用户说"继续讨论"或类似的话，直接基于当前画布内容给出下一步建议
+
+当前画布上下文：
+{canvas_summary}"""
+
+    # Build messages array
+    messages = [{"role": "user", "content": request.input}]
+    main_loop = asyncio.get_event_loop()
+
+    def event_stream():
+        all_text = ""
+        all_tool_calls = []
         try:
-            agent_result = await router.route(
-                user_input=request.input,
-                context=canvas_context,
-                session_messages=session_messages
-            )
+            for _ in range(MAX_ROUNDS):
+                tool_uses = []
+                current_tool_id = None
+                current_tool_name = None
+                current_tool_json = ""
 
-            return StreamingResponse(
-                _agent_result_stream(agent_result),
-                media_type="text/event-stream"
-            )
+                with chat_multi_stream(
+                    system=system_prompt,
+                    messages=messages,
+                    model=cfg.llm.flow.model,
+                    max_tokens=cfg.llm.flow.max_tokens,
+                    temperature=cfg.llm.flow.temperature,
+                    tools=CANVAS_TOOLS,
+                ) as stream:
+                    for event in stream:
+                        if event.type == "content_block_start":
+                            if event.content_block.type == "tool_use":
+                                current_tool_id = event.content_block.id
+                                current_tool_name = event.content_block.name
+                                current_tool_json = ""
+                                yield f"data: {json.dumps({'type': 'tool_start', 'id': current_tool_id, 'name': current_tool_name})}\n\n"
+                        elif event.type == "content_block_delta":
+                            if event.delta.type == "text_delta":
+                                all_text += event.delta.text
+                                yield f"data: {json.dumps({'type': 'text', 'text': event.delta.text})}\n\n"
+                            elif event.delta.type == "input_json_delta":
+                                current_tool_json += event.delta.partial_json
+                                yield f"data: {json.dumps({'type': 'tool_delta', 'json': event.delta.partial_json})}\n\n"
+                        elif event.type == "content_block_stop":
+                            if current_tool_name and current_tool_json:
+                                tool_uses.append({
+                                    "id": current_tool_id,
+                                    "name": current_tool_name,
+                                    "input": current_tool_json,
+                                })
+                            current_tool_name = None
+                            current_tool_json = ""
+                            yield f"data: {json.dumps({'type': 'block_stop'})}\n\n"
+                        elif event.type == "message_stop":
+                            yield f"data: {json.dumps({'type': 'message_stop'})}\n\n"
+
+                if not tool_uses:
+                    break
+
+                # Build assistant message with tool_use blocks
+                assistant_content = []
+                for tu in tool_uses:
+                    try:
+                        tool_input = json.loads(tu["input"])
+                    except json.JSONDecodeError:
+                        tool_input = {}
+                    assistant_content.append({
+                        "type": "tool_use",
+                        "id": tu["id"],
+                        "name": tu["name"],
+                        "input": tool_input,
+                    })
+                    all_tool_calls.append({"name": tu["name"], "arguments": tool_input})
+                messages.append({"role": "assistant", "content": assistant_content})
+
+                # Execute tools — L3 agent tools run server-side, others wait for frontend
+                tool_results = []
+                for tu in tool_uses:
+                    tool_name = tu["name"]
+                    try:
+                        tool_input = json.loads(tu["input"])
+                    except (json.JSONDecodeError, TypeError):
+                        tool_input = tu["input"] if isinstance(tu["input"], dict) else {}
+
+                    # L3 agent tools: execute server-side
+                    if tool_name in L3_TOOL_NAMES:
+                        try:
+                            future = asyncio.run_coroutine_threadsafe(
+                                execute_agent_tool(tool_name, tool_input, ctx),
+                                main_loop,
+                            )
+                            result_content = future.result(timeout=60)
+                        except Exception as agent_err:
+                            logger.error(f"Agent tool {tool_name} failed: {agent_err}")
+                            result_content = None
+                        if result_content is None:
+                            result_content = json.dumps({"error": f"Agent tool {tool_name} not available"})
+                        # Send agent result as SSE event for frontend to create card
+                        yield f"data: {json.dumps({'type': 'agent_result', 'tool': tool_name, 'result': json.loads(result_content)})}\n\n"
+                    # Regular tools: wait for frontend execution
+                    elif session_id:
+                        result_content = _wait_for_tool_result(session_id, tu["id"], timeout=30.0)
+                    else:
+                        result_content = "Tool executed successfully."
+
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tu["id"],
+                        "content": result_content,
+                    })
+                messages.append({"role": "user", "content": tool_results})
+
         except Exception as e:
-            logger.exception("Agent routing failed")
-            return StreamingResponse(
-                _error_stream(f"Agent error: {str(e)}"),
-                media_type="text/event-stream"
-            )
-    else:
-        # Use original chat flow
-        return StreamingResponse(
-            stream_chat_response(
-                request.session_id,
-                request.provider_id,
-                request.input,
-                canvas_context,
-                session_manager
-            ),
-            media_type="text/event-stream"
-        )
+            logger.error(f"Streaming chat failed: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        finally:
+            if session_id:
+                with _tool_result_lock:
+                    _tool_result_buffers.pop(session_id, None)
+                    _tool_result_events.pop(session_id, None)
 
+            # ── Save assistant message to session ──
+            if all_text or all_tool_calls:
+                tool_calls = [
+                    ToolCall(id=f"tc_{i}", name=tc["name"], arguments=tc["arguments"])
+                    for i, tc in enumerate(all_tool_calls)
+                ] if all_tool_calls else None
+                msg = Message(
+                    role="assistant",
+                    content=all_text or None,
+                    tool_calls=tool_calls,
+                )
+                try:
+                    asyncio.run_coroutine_threadsafe(
+                        session_manager.add_message(session_id, msg),
+                        main_loop,
+                    ).result(timeout=5)
+                except Exception as e:
+                    logger.error(f"Failed to save assistant message: {e}")
 
-async def _agent_result_stream(agent_result: Dict[str, Any]):
-    """Stream agent result as SSE events.
-
-    Args:
-        agent_result: Agent execution result
-
-    Yields:
-        SSE formatted events
-    """
-    # Send agent message
-    if "message" in agent_result:
-        yield f"data: {json.dumps({'type': 'text', 'content': agent_result['message']})}\n\n"
-
-    # Send agent action (e.g., create_card)
-    if agent_result.get("action") == "create_card":
-        yield f"data: {json.dumps({'type': 'agent_action', 'action': 'create_card', 'card': agent_result['card']})}\n\n"
-
-    # Send metadata
-    if "metadata" in agent_result:
-        yield f"data: {json.dumps({'type': 'agent_metadata', 'metadata': agent_result['metadata']})}\n\n"
-
-    # Send done
-    yield f"data: {json.dumps({'type': 'done'})}\n\n"
-
-
-async def _error_stream(error_message: str):
-    """Stream error message.
-
-    Args:
-        error_message: Error message
-
-    Yields:
-        SSE formatted error event
-    """
-    yield f"data: {json.dumps({'type': 'error', 'error': error_message})}\n\n"
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

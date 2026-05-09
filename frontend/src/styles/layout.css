@@ -1,0 +1,169 @@
+/* ═══════════════════════════════════════════════════════
+   App Shell & Top Bar
+   ═══════════════════════════════════════════════════════ */
+
+/* ── App Shell ── */
+.app {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  grid-template-rows: 48px auto 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Top Bar ── */
+.topbar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  z-index: 100;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-brand {
+  font: 600 15px/1 var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  display: flex; align-items: center; gap: 6px;
+}
+.topbar-brand svg { width: 18px; height: 18px; }
+.topbar-sep { width: 1px; height: 20px; background: var(--border); }
+.topbar-nav { display: flex; gap: 2px; }
+.topbar-nav button {
+  background: none; border: none; cursor: pointer;
+  font: 12px/1 var(--font-body); color: var(--muted);
+  padding: 6px 10px; border-radius: var(--radius-sm);
+  transition: background var(--transition), color var(--transition);
+}
+.topbar-nav button:hover { background: var(--border); color: var(--fg); }
+.topbar-nav button.active { background: var(--accent-light); color: var(--accent); }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.topbar-kbd {
+  font: 10px/1 var(--font-mono);
+  color: var(--muted);
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+}
+.topbar-btn {
+  background: none; border: 1px solid var(--border); cursor: pointer;
+  font: 12px/1 var(--font-body); color: var(--fg);
+  padding: 6px 12px; border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.topbar-btn:hover { border-color: var(--accent); color: var(--accent); }
+.topbar-btn.primary {
+  background: var(--accent); border-color: var(--accent);
+  color: white;
+}
+.topbar-btn.primary:hover { background: var(--accent-dim); }
+
+/* ── Space Selector ── */
+.space-selector {
+  position: relative;
+}
+.space-selector-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  max-width: 160px;
+}
+.space-selector-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.space-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.space-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.space-dropdown.open {
+  display: block;
+}
+.space-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  transition: background var(--transition);
+}
+.space-item:hover {
+  background: var(--border);
+}
+.space-item.active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.space-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.space-item-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 0 4px;
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+}
+.space-item:hover .space-item-delete {
+  opacity: 1;
+}
+.space-item-delete:hover {
+  color: #e74c3c;
+}
+.space-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.space-new-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: 12px/1 var(--font-body);
+  color: var(--accent);
+  transition: background var(--transition);
+}
+.space-new-btn:hover {
+  background: var(--accent-light);
+}

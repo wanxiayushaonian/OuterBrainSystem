@@ -160,10 +160,10 @@
 .connections-svg line.temp-line { stroke: var(--accent); opacity: 0.4; stroke-dasharray: 6 4; }
 .conn-label {
   position: absolute;
-  font: 11px/1 var(--font-body);
+  font: 600 11px/1 var(--font-body);
   color: var(--muted);
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: color-mix(in oklch, var(--bg) 85%, var(--accent) 15%);
+  border: 1.5px solid var(--border);
   border-radius: 12px;
   padding: 3px 10px;
   cursor: pointer;
@@ -172,6 +172,7 @@
   white-space: nowrap;
   backdrop-filter: blur(4px);
   transform: translate(-50%, -50%);
+  box-shadow: 0 1px 4px oklch(0% 0 0 / 0.12);
 }
 .conn-label:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 
@@ -235,6 +236,19 @@
   transition: color var(--transition);
 }
 .group-title:hover .group-toggle { color: var(--accent); }
+.group-lock {
+  font-size: 14px;
+  opacity: 0.4;
+  cursor: pointer;
+  transition: opacity var(--transition);
+  margin-left: auto;
+}
+.group-lock:hover { opacity: 1; }
+.group-lock.locked { opacity: 0.8; }
+.canvas-group.group-locked {
+  border-style: solid;
+  border-color: oklch(70% 0.08 255 / 0.5);
+}
 
 /* ── Collapsed Group Pill ── */
 .canvas-group.collapsed {
@@ -321,7 +335,7 @@
   transition: opacity 0.2s;
 }
 .conn-label.conn-dim {
-  opacity: 0.1;
+  opacity: 0.35;
 }
 .conn-label.conn-highlight {
   font-weight: 600;
