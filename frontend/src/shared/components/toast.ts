@@ -4,7 +4,7 @@
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
-export function showToast(msg: string): void {
+export function showToast(msg: string, _type?: string): void {
   const toast = document.getElementById('toast')!;
   toast.textContent = msg;
   toast.classList.add('show');

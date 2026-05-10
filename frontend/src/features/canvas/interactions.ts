@@ -19,8 +19,8 @@ import type { Connection } from '../../core/types/types';
 
 let isPanning = false;
 let panStart = { x: 0, y: 0 };
-let connFromPort: 'top' | 'right' | 'bottom' | 'left' | null = null;
-let connToPort: 'top' | 'right' | 'bottom' | 'left' | null = null;
+let connFromPort: string | null = null;
+let connToPort: string | null = null;
 
 // Track last mouse position on canvas for paste placement
 let lastCanvasMouse = { x: 300, y: 200 };

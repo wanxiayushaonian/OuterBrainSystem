@@ -168,7 +168,7 @@ export function getCardCenter(cardId: number): { cx: number; cy: number } {
 }
 
 /** Get the explicit position of a named port (top/right/bottom/left) on a card or group. */
-export function getPortPosition(id: number, port: 'top' | 'right' | 'bottom' | 'left'): { x: number; y: number } {
+export function getPortPosition(id: number, port: string): { x: number; y: number } {
   // Group (negative ID)
   if (id < 0) {
     const gid = -id;
@@ -609,7 +609,7 @@ export function renderConnections(): void {
 }
 
 /** Render a temporary bezier curve while dragging a connection. */
-export function renderTempConnection(fromId: number, toX: number, toY: number, fromPort?: 'top' | 'right' | 'bottom' | 'left'): void {
+export function renderTempConnection(fromId: number, toX: number, toY: number, fromPort?: string): void {
   const svg = document.getElementById('connectionsSvg');
   if (!svg) return;
 
