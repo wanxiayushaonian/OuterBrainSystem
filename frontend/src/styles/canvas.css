@@ -85,6 +85,20 @@
 .canvas-card .card-body strong { font-weight: 600; }
 .canvas-card .card-body em { font-style: italic; color: var(--muted); }
 .canvas-card .card-body hr { border: none; border-top: 1px solid var(--border); margin: 6px 0; }
+.canvas-card .card-body img {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 4px;
+  display: block;
+  object-fit: contain;
+}
+.canvas-card .card-body .card-image-name {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  word-break: break-all;
+  line-height: 1.3;
+}
 .canvas-card .card-status-tag {
   display: inline-block;
   font: 10px/1 var(--font-mono);
@@ -212,6 +226,14 @@
   z-index: 1;
   pointer-events: none;
 }
+.group-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: auto;
+  cursor: default;
+  z-index: 0;
+}
 .group-title {
   position: absolute;
   top: 6px; left: 12px;
@@ -249,6 +271,20 @@
   border-style: solid;
   border-color: oklch(70% 0.08 255 / 0.5);
 }
+/* Group connection ports */
+.canvas-group:not(.collapsed) .conn-port {
+  z-index: 15;
+  pointer-events: auto;
+  cursor: crosshair;
+}
+.canvas-group:not(.collapsed):hover .conn-port { opacity: 1; }
+.canvas-group.snap-target {
+  box-shadow: 0 0 0 3px oklch(70% 0.15 255 / 0.3);
+  transition: box-shadow 0.15s ease;
+}
+.canvas-group.snap-target .conn-port { opacity: 1; background: var(--accent); border-color: var(--accent); }
+/* Group connection label */
+.conn-label.conn-group { font-style: italic; }
 
 /* ── Collapsed Group Pill ── */
 .canvas-group.collapsed {

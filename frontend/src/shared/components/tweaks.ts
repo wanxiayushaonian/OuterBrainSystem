@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════════
 // Settings panel: language, label management, shortcuts, draggable
 // ═══════════════════════════════════════════════════════
-import { state, LABELS, LABEL_PRESETS, scheduleSave } from '../../core/types/state';
-import { setLang, t } from '../../i18n';
+import { state, LABELS, LABEL_PRESETS, scheduleSave, pushUndo } from '../../core/types/state';
+import { setLang, t, escapeHtml } from '../../i18n';
 import { showToast } from './toast';
 import { updateTimeline } from '../../version/manager';
 import { renderCanvas, renderConnections } from '../../features/canvas/renderer';
@@ -13,24 +13,39 @@ function renderPacks(): void {
   const container = document.getElementById('tweaksPacks');
   if (!container) return;
 
-  container.innerHTML = Object.entries(LABEL_PRESETS).map(([id, pack]) => {
+  // Built-in packs
+  const builtIn = Object.entries(LABEL_PRESETS).map(([id, pack]) => {
     const active = state.activeLabelPacks.includes(id);
     return `<label class="tweaks-pack-item${active ? ' active' : ''}" data-pack="${id}">
       <input type="checkbox" ${active ? 'checked' : ''} data-pack="${id}"/>
-      <span class="tweaks-pack-name">${pack.name}</span>
+      <span class="tweaks-pack-name">${escapeHtml(pack.name)}</span>
       <span class="tweaks-pack-count">${pack.labels.length}</span>
     </label>`;
   }).join('');
+
+  // Custom packs
+  const custom = Object.entries(state.customLabelPacks).map(([id, pack]) => {
+    const active = state.activeLabelPacks.includes(id);
+    return `<label class="tweaks-pack-item custom${active ? ' active' : ''}" data-pack="${id}">
+      <input type="checkbox" ${active ? 'checked' : ''} data-pack="${id}"/>
+      <span class="tweaks-pack-name">${escapeHtml(pack.name)}</span>
+      <span class="tweaks-pack-count">${pack.labels.length}</span>
+      <span class="pack-delete" data-delete-pack="${id}" title="${t('btn-delete') || '删除'}">&times;</span>
+    </label>`;
+  }).join('');
+
+  container.innerHTML = builtIn + custom
+    + `<button class="tweaks-add-pack-btn" id="addPackBtn">+ ${t('btn-new-pack') || '新建关系包'}</button>`;
 }
 
 function renderLabels(): void {
   const container = document.getElementById('tweaksLabels');
   if (!container) return;
 
-  // Show labels from active packs (not custom)
+  // Show labels from active packs (built-in + custom packs)
   const packLabels: string[] = [];
   for (const packId of state.activeLabelPacks) {
-    const pack = LABEL_PRESETS[packId];
+    const pack = LABEL_PRESETS[packId] || state.customLabelPacks[packId];
     if (pack) packLabels.push(...pack.labels);
   }
   const uniquePackLabels = [...new Set(packLabels)];
@@ -224,5 +239,134 @@ export function initTweaks(): void {
     if (panel?.classList.contains('open') && !panel.contains(e.target as Node) && !fab?.contains(e.target as Node)) {
       panel.classList.remove('open');
     }
+  });
+
+  // ── Pack creation modal ──
+
+  // Create modal HTML dynamically
+  const modalBackdrop = document.createElement('div');
+  modalBackdrop.className = 'pack-modal-backdrop';
+  modalBackdrop.id = 'packModalBackdrop';
+  const modal = document.createElement('div');
+  modal.className = 'pack-modal';
+  modal.id = 'packModal';
+  modal.innerHTML = `
+    <div class="pack-modal-header">
+      <h4>${t('pack-create-title')}</h4>
+      <button class="pack-modal-close" id="packModalClose">&times;</button>
+    </div>
+    <div class="pack-modal-body">
+      <div>
+        <label>${t('pack-name-label')}</label>
+        <input type="text" id="packNameInput" placeholder="${t('pack-name-placeholder')}" />
+      </div>
+      <div>
+        <label>${t('pack-labels-label')}</label>
+        <textarea id="packLabelsInput" placeholder="${t('pack-labels-placeholder')}" rows="4"></textarea>
+      </div>
+    </div>
+    <div class="pack-modal-footer">
+      <button class="pack-modal-cancel" id="packModalCancel">${t('btn-cancel')}</button>
+      <button class="pack-modal-confirm" id="packModalConfirm">${t('btn-create')}</button>
+    </div>
+  `;
+  document.body.appendChild(modalBackdrop);
+  document.body.appendChild(modal);
+
+  const packNameInput = document.getElementById('packNameInput') as HTMLInputElement;
+  const packLabelsInput = document.getElementById('packLabelsInput') as HTMLTextAreaElement;
+
+  function openPackModal(): void {
+    if (packNameInput) packNameInput.value = '';
+    if (packLabelsInput) packLabelsInput.value = '';
+    modalBackdrop.classList.add('show');
+    modal.classList.add('show');
+    requestAnimationFrame(() => {
+      if (packNameInput) {
+        packNameInput.style.height = 'auto';
+        packNameInput.focus();
+      }
+      if (packLabelsInput) {
+        packLabelsInput.style.height = 'auto';
+        packLabelsInput.style.height = packLabelsInput.scrollHeight + 'px';
+      }
+    });
+  }
+
+  function closePackModal(): void {
+    modalBackdrop.classList.remove('show');
+    modal.classList.remove('show');
+  }
+
+  function confirmPackModal(): void {
+    const name = (packNameInput?.value || '').trim();
+    if (!name) {
+      showToast(t('toast-pack-name-required') || '请输入关系包名称');
+      return;
+    }
+    const labelsText = (packLabelsInput?.value || '').trim();
+    const labels = labelsText.split('\n').map(l => l.trim()).filter(Boolean);
+    if (labels.length === 0) {
+      closePackModal();
+      return;
+    }
+    const packId = 'custom_' + Date.now();
+    state.customLabelPacks[packId] = { name, labels };
+    if (!state.activeLabelPacks.includes(packId)) state.activeLabelPacks.push(packId);
+    closePackModal();
+    renderPacks();
+    renderLabels();
+    renderConnections();
+    scheduleSave();
+    showToast(t('toast-pack-created') || '已创建关系包');
+  }
+
+  // Event delegation for pack area
+  packsContainer?.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+
+    // Delete custom pack
+    const deleteBtn = target.closest('.pack-delete') as HTMLElement | null;
+    if (deleteBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const packId = deleteBtn.dataset.deletePack;
+      if (!packId) return;
+      delete state.customLabelPacks[packId];
+      state.activeLabelPacks = state.activeLabelPacks.filter(p => p !== packId);
+      if (state.activeLabelPacks.length === 0) state.activeLabelPacks.push('general');
+      renderPacks();
+      renderLabels();
+      renderConnections();
+      scheduleSave();
+      showToast(t('toast-pack-deleted') || '已删除关系包');
+      return;
+    }
+
+    // Add new pack
+    if (target.closest('#addPackBtn')) {
+      openPackModal();
+    }
+  });
+
+  document.getElementById('packModalClose')?.addEventListener('click', closePackModal);
+  document.getElementById('packModalCancel')?.addEventListener('click', closePackModal);
+  document.getElementById('packModalConfirm')?.addEventListener('click', confirmPackModal);
+  modalBackdrop?.addEventListener('click', closePackModal);
+
+  // Auto-expand textarea in pack modal
+  packLabelsInput?.addEventListener('input', () => {
+    packLabelsInput.style.height = 'auto';
+    packLabelsInput.style.height = packLabelsInput.scrollHeight + 'px';
+  });
+
+  // Ctrl+Enter to submit in pack modal
+  packNameInput?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter') confirmPackModal();
+    if (e.key === 'Escape') closePackModal();
+  });
+  packLabelsInput?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) confirmPackModal();
+    if (e.key === 'Escape') closePackModal();
   });
 }

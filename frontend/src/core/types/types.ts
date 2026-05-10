@@ -12,7 +12,7 @@ export interface Card {
   x: number;
   y: number;
   // Card type system (Phase 2)
-  type?: 'note' | 'distillation' | 'socratic' | 'flow_analysis' | 'choice' | 'vote' | 'conclusion';
+  type?: 'note' | 'distillation' | 'socratic' | 'flow_analysis' | 'choice' | 'vote' | 'conclusion' | 'image';
   metadata?: Record<string, any>;
   // Extended for conclusion cards
   summary?: string;
@@ -22,12 +22,31 @@ export interface Card {
   keywords?: string[];
   // Open question
   openQuestion?: string;
+  // Dock points: number of connection ports per side (left/right), default 1
+  dockCount?: number;
 }
 
 export interface Connection {
   from: number;
   to: number;
   label: string;
+  fromPort?: string; // 'top' | 'bottom' | 'left-N' | 'right-N'
+  toPort?: string;
+}
+
+/** Create a connection endpoint ID — negative for groups, positive for cards. */
+export function connId(id: number, isGroup: boolean): number {
+  return isGroup ? -id : id;
+}
+
+/** Check if a connection endpoint ID refers to a group. */
+export function isGroupConnId(id: number): boolean {
+  return id < 0;
+}
+
+/** Resolve a connection endpoint ID to the actual card/group ID. */
+export function resolveConnId(id: number): number {
+  return id < 0 ? -id : id;
 }
 
 export interface CardGroup {
@@ -37,6 +56,7 @@ export interface CardGroup {
   color: string;
   collapsed: boolean;
   locked: boolean;
+  parentId?: number;
 }
 
 export interface Branch {
@@ -79,6 +99,7 @@ export interface AppState {
   nextBranchId: number;
   branchColors: string[];
   customLabels: string[];
+  customLabelPacks: Record<string, { name: string; labels: string[] }>;
   activeLabelPacks: string[];
   selectedCards: Set<number>;
   zoom: number;

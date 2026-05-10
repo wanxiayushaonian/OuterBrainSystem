@@ -108,8 +108,46 @@
   transition: background var(--transition);
 }
 .context-menu-item:hover { background: var(--accent-light); }
+.context-menu-item.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+.context-menu-item.active svg { stroke: var(--accent); }
 .context-menu-item svg { width: 14px; height: 14px; stroke: var(--muted); }
 .context-menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
+/* Submenu support */
+.context-menu-has-sub { position: relative; }
+.context-menu-has-sub .submenu-arrow { width: 12px; height: 12px; margin-left: auto; stroke: var(--muted); }
+.context-submenu {
+  position: absolute;
+  left: 100%;
+  top: -4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  min-width: 160px;
+  padding: 4px;
+  display: none;
+  z-index: 301;
+}
+.context-menu-has-sub:hover .context-submenu { display: block; }
+.context-submenu-item {
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  transition: background var(--transition);
+  white-space: nowrap;
+}
+.context-submenu-item:hover { background: var(--accent-light); }
+.context-submenu-item .group-color-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 
 /* ── Toast ── */
 .toast {
@@ -196,16 +234,22 @@
   font: 600 13px/1 var(--font-display);
   margin-bottom: 12px;
 }
-.rename-modal input {
+.rename-modal input,
+.rename-modal textarea {
   width: 100%;
-  font: 13px/1 var(--font-body);
+  font: 13px/1.5 var(--font-body);
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   outline: none;
   margin-bottom: 12px;
+  color: var(--fg);
+  background: transparent;
+  resize: none;
+  overflow: hidden;
 }
-.rename-modal input:focus { border-color: var(--accent); }
+.rename-modal input:focus,
+.rename-modal textarea:focus { border-color: var(--accent); }
 .rename-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .rename-modal-actions button {
   font: 12px/1 var(--font-body);

@@ -225,9 +225,28 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
     <span data-i18n="ctx-group">创建分组 Create Group</span>
   </div>
+  <div class="context-menu-item context-menu-has-sub" data-action="ctx-add-to-group" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+    <span data-i18n="ctx-add-to-group">添加到分组 Add to Group</span>
+    <svg class="submenu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    <div class="context-submenu" id="addToGroupSubmenu"></div>
+  </div>
+  <div class="context-menu-item" data-action="ctx-remove-from-group" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+    <span data-i18n="ctx-remove-from-group">从分组中移除 Remove from Group</span>
+  </div>
   <div class="context-menu-item" data-action="ctx-ungroup" style="display:none">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
     <span data-i18n="ctx-ungroup">解散分组 Ungroup</span>
+  </div>
+  <div class="context-menu-sep"></div>
+  <div class="context-menu-item" data-action="ctx-add-dock">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    <span data-i18n="ctx-add-dock">增加停靠点 Add Dock</span>
+  </div>
+  <div class="context-menu-item" data-action="ctx-remove-dock">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    <span data-i18n="ctx-remove-dock">减少停靠点 Remove Dock</span>
   </div>
   <div class="context-menu-sep"></div>
   <div class="context-menu-item" data-action="ctx-to-inbox">
@@ -240,16 +259,29 @@
   </div>
 </div>
 
-<!-- CONNECTION CONTEXT MENU -->
-<div class="context-menu" id="connContextMenu">
-  <div class="context-menu-item" data-action="conn-cycle">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-12.28L1 10"/></svg>
-    <span data-i18n="ctx-cycle-label">切换关系 Cycle Label</span>
+<!-- CONNECTION CONTEXT MENU (dynamically built) -->
+<div class="context-menu" id="connContextMenu"></div>
+
+<!-- GROUP CONTEXT MENU (right-click on group bounding box) -->
+<div class="context-menu" id="groupContextMenu">
+  <div class="context-menu-item" data-action="grp-rename">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+    <span data-i18n="ctx-rename-group">重命名分组 Rename Group</span>
+  </div>
+  <div class="context-menu-item context-menu-has-sub" data-action="grp-nest" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h7v7h-7z" stroke-dasharray="3 2"/></svg>
+    <span data-i18n="ctx-nest-into">嵌套到… Nest into…</span>
+    <svg class="submenu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    <div class="context-submenu" id="nestGroupSubmenu"></div>
+  </div>
+  <div class="context-menu-item" data-action="grp-unnest" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+    <span data-i18n="ctx-unnest">取消嵌套 Unnest</span>
   </div>
   <div class="context-menu-sep"></div>
-  <div class="context-menu-item" data-action="conn-delete">
+  <div class="context-menu-item" data-action="grp-dissolve">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-    <span data-i18n="ctx-delete-conn">删除连接 Delete Connection</span>
+    <span data-i18n="ctx-dissolve-group">解散分组 Dissolve Group</span>
   </div>
 </div>
 
@@ -269,7 +301,7 @@
 <!-- RENAME MODAL -->
 <div class="rename-modal" id="renameModal">
   <h4 data-i18n="rename-title">命名版本 Name Version</h4>
-  <input type="text" id="renameInput" placeholder="如：确定了核心架构…" data-i18n-placeholder="rename-placeholder"/>
+  <textarea id="renameInput" rows="1" placeholder="如：确定了核心架构…" data-i18n-placeholder="rename-placeholder"></textarea>
   <div class="rename-modal-actions">
     <button id="renameClose" data-i18n="btn-cancel">取消 Cancel</button>
     <button class="primary" id="renameSave" data-i18n="btn-save">保存标记 Save</button>
@@ -279,7 +311,7 @@
 <!-- BRANCH CREATION MODAL -->
 <div class="rename-modal" id="branchModal">
   <h4 data-i18n="branch-create-title">创建分支 Create Branch</h4>
-  <input type="text" id="branchNameInput" placeholder="如：探索另一个方向…" data-i18n-placeholder="branch-create-placeholder"/>
+  <textarea id="branchNameInput" rows="1" placeholder="如：探索另一个方向…" data-i18n-placeholder="branch-create-placeholder"></textarea>
   <div class="rename-modal-actions">
     <button id="branchClose" data-i18n="btn-cancel">取消 Cancel</button>
     <button class="primary" id="branchCreate" data-i18n="btn-create">创建 Create</button>
@@ -299,7 +331,7 @@
 <!-- GROUP CREATION MODAL -->
 <div class="rename-modal" id="groupModal">
   <h4 data-i18n="group-create-title">创建分组 Create Group</h4>
-  <input type="text" id="groupNameInput" placeholder="如：核心论点…" data-i18n-placeholder="group-create-placeholder"/>
+  <textarea id="groupNameInput" rows="1" placeholder="如：核心论点…" data-i18n-placeholder="group-create-placeholder"></textarea>
   <div class="rename-modal-actions">
     <button id="groupClose" data-i18n="btn-cancel">取消 Cancel</button>
     <button class="primary" id="groupCreate" data-i18n="btn-create">创建 Create</button>
@@ -309,7 +341,7 @@
 <!-- SPACE CREATION MODAL -->
 <div class="rename-modal" id="spaceModal">
   <h4 data-i18n="space-create-title">创建新空间 Create Space</h4>
-  <input type="text" id="spaceNameInput" placeholder="如：项目A…" data-i18n-placeholder="space-create-placeholder"/>
+  <textarea id="spaceNameInput" rows="1" placeholder="如：项目A…" data-i18n-placeholder="space-create-placeholder"></textarea>
   <div class="rename-modal-actions">
     <button id="spaceClose" data-i18n="btn-cancel">取消 Cancel</button>
     <button class="primary" id="spaceCreate" data-i18n="btn-create">创建 Create</button>
@@ -373,6 +405,17 @@
       <div class="shortcut-item"><kbd>Ctrl</kbd>+<kbd>D</kbd><span>复制选中卡片</span></div>
       <div class="shortcut-item"><kbd>Delete</kbd><span>删除选中</span></div>
       <div class="shortcut-item"><kbd>Escape</kbd><span>取消选择 / 关闭面板</span></div>
+    </div>
+    <div class="settings-section-label">卡片对齐</div>
+    <div class="shortcut-list">
+      <div class="shortcut-item"><kbd>Alt</kbd>+<kbd>L</kbd><span>左对齐</span></div>
+      <div class="shortcut-item"><kbd>Alt</kbd>+<kbd>R</kbd><span>右对齐</span></div>
+      <div class="shortcut-item"><kbd>Alt</kbd>+<kbd>T</kbd><span>顶部对齐</span></div>
+      <div class="shortcut-item"><kbd>Alt</kbd>+<kbd>B</kbd><span>底部对齐</span></div>
+      <div class="shortcut-item"><kbd>Alt</kbd>+<kbd>H</kbd><span>水平居中</span></div>
+      <div class="shortcut-item"><kbd>Alt</kbd>+<kbd>V</kbd><span>垂直居中</span></div>
+      <div class="shortcut-item"><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd><span>水平分布</span></div>
+      <div class="shortcut-item"><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd><span>垂直分布</span></div>
     </div>
     <div class="settings-section-label">版本与保存</div>
     <div class="shortcut-list">

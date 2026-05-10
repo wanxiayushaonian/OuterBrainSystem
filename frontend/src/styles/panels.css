@@ -1077,6 +1077,148 @@
 }
 .tweaks-label-add button:hover { opacity: 0.85; }
 
+/* ── Custom Pack Add Button ── */
+.tweaks-add-pack-btn {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font: 11px/1 var(--font-body);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.tweaks-add-pack-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: oklch(96% 0.02 255 / 0.3);
+}
+
+/* ── Custom Pack Delete ── */
+.tweaks-pack-item .pack-delete {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: all var(--transition);
+}
+.tweaks-pack-item:hover .pack-delete { opacity: 1; }
+.tweaks-pack-item .pack-delete:hover {
+  color: oklch(55% 0.18 25);
+  background: oklch(90% 0.06 25 / 0.3);
+}
+
+/* ── Pack Creation Modal ── */
+.pack-modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 600;
+  display: none;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pack-modal.show {
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+.pack-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0% 0 0 / 0.3);
+  z-index: 599;
+  display: none;
+}
+.pack-modal-backdrop.show { display: block; }
+.pack-modal-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pack-modal-header h4 {
+  font: 600 13px/1 var(--font-display);
+  color: var(--fg);
+  margin: 0;
+}
+.pack-modal-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 18px;
+  padding: 2px 6px; border-radius: 4px;
+}
+.pack-modal-close:hover { background: var(--border); }
+.pack-modal-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pack-modal-body label {
+  font: 600 11px/1 var(--font-body);
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.pack-modal-body input,
+.pack-modal-body textarea {
+  font: 12px/1.5 var(--font-body);
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.pack-modal-body input:focus,
+.pack-modal-body textarea:focus { border-color: var(--accent); }
+.pack-modal-body textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: 60px;
+}
+.pack-modal-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.pack-modal-footer button {
+  font: 12px/1 var(--font-body);
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.pack-modal-footer .pack-modal-cancel {
+  background: var(--surface);
+  color: var(--fg);
+}
+.pack-modal-footer .pack-modal-cancel:hover { background: var(--bg); }
+.pack-modal-footer .pack-modal-confirm {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.pack-modal-footer .pack-modal-confirm:hover { opacity: 0.85; }
+
 /* ── Keyboard Shortcuts ── */
 .shortcut-list {
   display: flex;

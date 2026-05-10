@@ -1,22 +1,29 @@
 // ═══════════════════════════════════════════════════════
 // Canvas interactions: drag, connect, select, pan, zoom, keyboard
 // ═══════════════════════════════════════════════════════
-import { state, LABELS, getAllLabels, scheduleSave, pushUndo, undo, redo } from '../../core/types/state';
+import { state, LABELS, scheduleSave, pushUndo, undo, redo } from '../../core/types/state';
+import { connId } from '../../core/types/types';
 import { t } from '../../i18n';
-import { renderCanvas, renderConnections, renderTempConnection, getCardPort, getCardCenter } from './renderer';
+import { renderCanvas, renderConnections, renderTempConnection, collapsedPillPositions } from './renderer';
 import { zoomCanvas, screenToCanvas, applyTransform, updateZoomDisplay } from './transform';
 import { renderInbox } from '../inbox/inbox';
 import { showToast } from '../../shared/components/toast';
 import { openCardAiPopup } from '../chat/card-popup';
+import { alignLeft, alignRight, alignTop, alignBottom, alignCenterH, alignCenterV, distributeH, distributeV } from './align';
 import { openCapture, closeCapture } from '../../features/capture/capture';
 import { closeAiPanel } from '../chat/panel';
 import { saveManualVersion, quickSaveVersion, createBranchManual, closeRenameModal, closeBranchModal } from '../../version/manager';
-import { contextAction, showCanvasContextMenu, showInboxContextMenu, showConnContextMenu, closeAllContextMenus, closeGroupModal } from '../../shared/components/context-menu';
+import { contextAction, showCanvasContextMenu, showInboxContextMenu, showConnContextMenu, showGroupContextMenu, closeAllContextMenus, closeGroupModal } from '../../shared/components/context-menu';
 import { closeSpaceModal } from '../../shared/components/space-selector';
 import type { Connection } from '../../core/types/types';
 
 let isPanning = false;
 let panStart = { x: 0, y: 0 };
+let connFromPort: 'top' | 'right' | 'bottom' | 'left' | null = null;
+let connToPort: 'top' | 'right' | 'bottom' | 'left' | null = null;
+
+// Track last mouse position on canvas for paste placement
+let lastCanvasMouse = { x: 300, y: 200 };
 
 // ── Canvas card mouse down ──
 export function onCanvasCardMouseDown(e: MouseEvent, id: number): void {
@@ -73,6 +80,19 @@ export function startConnect(e: MouseEvent, id: number): void {
   e.preventDefault();
   state.connecting = true;
   state.connectFrom = id;
+  // Detect which port the user dragged from
+  const portEl = (e.target as HTMLElement).closest('.conn-port') as HTMLElement | null;
+  if (portEl) {
+    const dir = portEl.classList.contains('top') ? 'top'
+      : portEl.classList.contains('right') ? 'right'
+      : portEl.classList.contains('bottom') ? 'bottom'
+      : 'left';
+    const dockIdx = portEl.dataset.dock;
+    connFromPort = dockIdx !== undefined ? `${dir}-${dockIdx}` : dir;
+  } else {
+    connFromPort = null;
+  }
+  connToPort = null;
   document.body.style.cursor = 'crosshair';
 }
 
@@ -92,6 +112,7 @@ export function onCanvasCardDblClick(e: MouseEvent, id: number): void {
 
 // ── Document mousemove: drag, connect temp line, selection box, pan ──
 function onDocumentMouseMove(e: MouseEvent): void {
+  lastCanvasMouse = { x: e.clientX, y: e.clientY };
   // Middle mouse panning
   if (isPanning) {
     state.pan.x += e.clientX - panStart.x;
@@ -143,37 +164,94 @@ function onDocumentMouseMove(e: MouseEvent): void {
   if (state.connecting && state.connectFrom) {
     const pos = screenToCanvas(e.clientX, e.clientY);
 
-    // Find nearest card for snapping
-    let snapX = pos.x;
-    let snapY = pos.y;
-    const SNAP_DISTANCE = 40;
-    let snappedCardId: number | null = null;
+    // Find the nearest port across all cards and groups
+    let bestDist = Infinity;
+    let bestX = pos.x;
+    let bestY = pos.y;
+    let bestId: number | null = null;
+    let bestPort: string | null = null;
 
+    // Check all ports on each card (including multi-dock)
     for (const card of state.cards) {
       if (!card.inCanvas || card.id === state.connectFrom) continue;
       const el = document.querySelector(`.canvas-card[data-id="${card.id}"]`) as HTMLElement | null;
       const w = el ? el.offsetWidth : 240;
       const h = el ? el.offsetHeight : 80;
-      const cx = card.x + w / 2;
-      const cy = card.y + h / 2;
-      const dist = Math.sqrt((pos.x - cx) ** 2 + (pos.y - cy) ** 2);
-      if (dist < SNAP_DISTANCE) {
-        const port = getCardPort(card.id, getCardCenter(state.connectFrom!).cx, getCardCenter(state.connectFrom!).cy);
-        snapX = port.x;
-        snapY = port.y;
-        snappedCardId = card.id;
-        break;
+      const dc = card.dockCount ?? 1;
+      const ports: Array<{ dir: string; x: number; y: number }> = [
+        { dir: 'top', x: card.x + w / 2, y: card.y },
+        { dir: 'bottom', x: card.x + w / 2, y: card.y + h },
+      ];
+      for (let i = 0; i < dc; i++) {
+        const yOff = h * (i + 1) / (dc + 1);
+        ports.push({ dir: `left-${i}`, x: card.x, y: card.y + yOff });
+        ports.push({ dir: `right-${i}`, x: card.x + w, y: card.y + yOff });
+      }
+      for (const p of ports) {
+        const d = Math.sqrt((pos.x - p.x) ** 2 + (pos.y - p.y) ** 2);
+        if (d < bestDist) {
+          bestDist = d;
+          bestX = p.x;
+          bestY = p.y;
+          bestId = card.id;
+          bestPort = p.dir;
+        }
       }
     }
 
-    // Highlight snapped card
-    document.querySelectorAll('.canvas-card.snap-target').forEach(el => el.classList.remove('snap-target'));
-    if (snappedCardId !== null) {
-      const snapEl = document.querySelector(`.canvas-card[data-id="${snappedCardId}"]`);
-      snapEl?.classList.add('snap-target');
+    // Check all 4 ports on each group
+    for (const group of state.groups) {
+      const gId = connId(group.id, true);
+      if (gId === state.connectFrom) continue;
+      const pill = collapsedPillPositions.get(group.id);
+      let gx: number, gy: number, gw: number, gh: number;
+      if (pill) {
+        gx = pill.x; gy = pill.y; gw = pill.w; gh = pill.h;
+      } else {
+        const el = document.querySelector(`.canvas-group[data-group-id="${group.id}"]`) as HTMLElement | null;
+        if (!el) continue;
+        gx = el.offsetLeft; gy = el.offsetTop; gw = el.offsetWidth; gh = el.offsetHeight;
+      }
+      const ports = {
+        top:    { x: gx + gw / 2, y: gy },
+        bottom: { x: gx + gw / 2, y: gy + gh },
+        left:   { x: gx,          y: gy + gh / 2 },
+        right:  { x: gx + gw,     y: gy + gh / 2 },
+      };
+      for (const dir of ['top', 'right', 'bottom', 'left'] as const) {
+        const p = ports[dir];
+        const d = Math.sqrt((pos.x - p.x) ** 2 + (pos.y - p.y) ** 2);
+        if (d < bestDist) {
+          bestDist = d;
+          bestX = p.x;
+          bestY = p.y;
+          bestId = gId;
+          bestPort = dir;
+        }
+      }
     }
 
-    renderTempConnection(state.connectFrom, snapX, snapY);
+    // Only snap within threshold
+    const SNAP_THRESHOLD = 50;
+    let snappedId: number | null = null;
+    if (bestDist < SNAP_THRESHOLD && bestId !== null && bestPort !== null) {
+      snappedId = bestId;
+      connToPort = bestPort;
+    } else {
+      connToPort = null;
+    }
+
+    // Highlight snapped target
+    document.querySelectorAll('.canvas-card.snap-target, .canvas-group.snap-target').forEach(el => el.classList.remove('snap-target'));
+    if (snappedId !== null) {
+      if (snappedId < 0) {
+        document.querySelector(`.canvas-group[data-group-id="${-snappedId}"]`)?.classList.add('snap-target');
+      } else {
+        document.querySelector(`.canvas-card[data-id="${snappedId}"]`)?.classList.add('snap-target');
+      }
+    }
+
+    renderTempConnection(state.connectFrom, bestX, bestY, connFromPort ?? undefined);
   }
 
   // Selection box
@@ -211,12 +289,40 @@ function onDocumentMouseUp(e: MouseEvent): void {
   }
 
   if (state.connecting && state.connectFrom) {
-    const target = (e.target as HTMLElement).closest('.canvas-card');
-    if (target) {
-      const targetId = parseInt(target.getAttribute('data-id')!);
-      if (targetId !== state.connectFrom) {
+    // Check if dropped on a card
+    const cardTarget = (e.target as HTMLElement).closest('.canvas-card');
+    // Check if dropped on a group
+    const groupTarget = (e.target as HTMLElement).closest('.canvas-group:not(.collapsed)') as HTMLElement | null;
+
+    let targetId: number | null = null;
+    if (cardTarget) {
+      targetId = parseInt(cardTarget.getAttribute('data-id')!);
+    } else if (groupTarget) {
+      const gid = parseInt(groupTarget.dataset.groupId!);
+      targetId = connId(gid, true);
+    }
+
+    if (targetId !== null && targetId !== state.connectFrom) {
+      // Prevent connecting a card to its own group
+      let blocked = false;
+      if (state.connectFrom > 0 && targetId < 0) {
+        const gid = -targetId;
+        const group = state.groups.find(g => g.id === gid);
+        if (group && group.cardIds.includes(state.connectFrom)) blocked = true;
+      } else if (state.connectFrom < 0 && targetId > 0) {
+        const gid = -state.connectFrom;
+        const group = state.groups.find(g => g.id === gid);
+        if (group && group.cardIds.includes(targetId)) blocked = true;
+      }
+      if (!blocked) {
         pushUndo();
-        state.connections.push({ from: state.connectFrom, to: targetId, label: t('label-related') });
+        state.connections.push({
+          from: state.connectFrom,
+          to: targetId,
+          label: t('label-related'),
+          fromPort: connFromPort ?? undefined,
+          toPort: connToPort ?? undefined,
+        });
         renderConnections();
         scheduleSave();
         showToast(t('toast-connected'));
@@ -224,9 +330,11 @@ function onDocumentMouseUp(e: MouseEvent): void {
     }
     state.connecting = false;
     state.connectFrom = null;
+    connFromPort = null;
+    connToPort = null;
     document.body.style.cursor = '';
     document.getElementById('connectionsSvg')?.querySelector('.temp-line')?.remove();
-    document.querySelectorAll('.canvas-card.snap-target').forEach(el => el.classList.remove('snap-target'));
+    document.querySelectorAll('.canvas-card.snap-target, .canvas-group.snap-target').forEach(el => el.classList.remove('snap-target'));
   }
 
   if (state.selectionStart) {
@@ -376,6 +484,17 @@ function onKeyDown(e: KeyboardEvent): void {
     }
     return;
   }
+  // Alt+Alignment → Align / distribute selected cards
+  if (e.altKey && !inInput) {
+    if (e.code === 'KeyL') { alignLeft(); return; }
+    if (e.code === 'KeyR') { alignRight(); return; }
+    if (e.code === 'KeyT') { alignTop(); return; }
+    if (e.code === 'KeyB') { alignBottom(); return; }
+    if (e.code === 'KeyH' && !e.shiftKey) { alignCenterH(); return; }
+    if (e.code === 'KeyV' && !e.shiftKey) { alignCenterV(); return; }
+    if (e.code === 'KeyH' && e.shiftKey) { distributeH(); return; }
+    if (e.code === 'KeyV' && e.shiftKey) { distributeV(); return; }
+  }
   // Escape → Close panels
   if (e.key === 'Escape') {
     closeCapture();
@@ -447,9 +566,93 @@ function onDocumentClick(e: MouseEvent): void {
   closeAllContextMenus();
 }
 
-// ── Canvas drop (inbox → canvas) ──
+// ── Image processing: blob → compressed base64 → card ──
+const IMAGE_MAX_SIZE = 500 * 1024; // 500KB threshold for compression
+
+function processImageFile(file: File, screenX: number, screenY: number, toastKey: string): void {
+  const imageName = file.name || '';
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = reader.result as string;
+    // Compress if base64 is large
+    if (result.length > IMAGE_MAX_SIZE) {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 1200;
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          const ratio = Math.min(maxDim / w, maxDim / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+        const compressed = canvas.toDataURL('image/jpeg', 0.7);
+        createImageCard(compressed, screenX, screenY, toastKey, imageName);
+      };
+      img.src = result;
+    } else {
+      createImageCard(result, screenX, screenY, toastKey, imageName);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function createImageCard(dataUrl: string, screenX: number, screenY: number, toastKey: string, imageName?: string): void {
+  const pos = screenToCanvas(screenX, screenY);
+  pushUndo();
+  const now = new Date();
+  const card = {
+    id: state.nextId++,
+    text: imageName || '',
+    source: t('source-nexus'),
+    time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    status: '' as const,
+    inCanvas: true,
+    x: Math.round(pos.x - 120),
+    y: Math.round(pos.y - 60),
+    type: 'image' as const,
+    metadata: { imageData: dataUrl, imageName: imageName || '' },
+  };
+  state.cards.push(card);
+  renderCanvas();
+  renderConnections();
+  scheduleSave();
+  showToast(t(toastKey));
+}
+
+// ── Canvas paste (image from clipboard) ──
+function onCanvasPaste(e: ClipboardEvent): void {
+  if (isTextInputFocused()) return;
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      if (file) processImageFile(file, lastCanvasMouse.x, lastCanvasMouse.y, 'toast-image-pasted');
+      return;
+    }
+  }
+}
+
+// ── Canvas drop (inbox → canvas, or image file → canvas) ──
 function onCanvasDrop(e: DragEvent): void {
   e.preventDefault();
+
+  // Check for dropped image files first
+  if (e.dataTransfer?.files?.length) {
+    for (const file of Array.from(e.dataTransfer.files)) {
+      if (file.type.startsWith('image/')) {
+        processImageFile(file, e.clientX, e.clientY, 'toast-image-dropped');
+      }
+    }
+    return;
+  }
+
+  // Fallback: card ID drop (inbox → canvas)
   const id = parseInt(e.dataTransfer!.getData('text/plain'));
   const card = state.cards.find(c => c.id === id);
   if (!card) return;
@@ -487,6 +690,7 @@ export function initInteractions(): void {
   document.addEventListener('mouseup', onDocumentMouseUp);
   document.addEventListener('click', onDocumentClick);
   document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('paste', onCanvasPaste);
 
   // Prevent text selection during panning
   document.addEventListener('selectstart', (e) => {
@@ -503,11 +707,20 @@ export function initInteractions(): void {
     // Delegated event listeners for canvas cards
     canvasArea.addEventListener('mousedown', (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+
+      // Group connection port (must check before card, since group ports are in .canvas-group)
+      const groupPort = target.closest('.canvas-group [data-action="connect"]') as HTMLElement | null;
+      if (groupPort) {
+        const gid = parseInt((groupPort.closest('[data-group-id]') as HTMLElement).dataset.groupId!);
+        startConnect(e, connId(gid, true));
+        return;
+      }
+
       const card = target.closest('.canvas-card') as HTMLElement | null;
       if (!card) return;
       const id = parseInt(card.getAttribute('data-id')!);
 
-      // Connection port
+      // Card connection port
       if (target.closest('[data-action="connect"]')) {
         startConnect(e, id);
         return;
@@ -580,21 +793,6 @@ export function initInteractions(): void {
   const canvasInner = document.getElementById('canvasInner');
   if (canvasInner) {
     canvasInner.addEventListener('click', (e: MouseEvent) => {
-      const label = (e.target as HTMLElement).closest('.conn-label') as HTMLElement | null;
-      if (label) {
-        const from = parseInt(label.dataset.connFrom!);
-        const to = parseInt(label.dataset.connTo!);
-        const conn = state.connections.find(c => c.from === from && c.to === to);
-        if (conn) {
-          pushUndo();
-          const all = getAllLabels();
-          const idx = all.indexOf(conn.label);
-          conn.label = all[(idx + 1) % all.length];
-          renderConnections();
-          showToast(conn.label);
-        }
-      }
-
       // Group lock toggle
       const lockEl = (e.target as HTMLElement).closest('.group-lock') as HTMLElement | null;
       if (lockEl && !state.didDrag) {
@@ -619,6 +817,14 @@ export function initInteractions(): void {
         const group = state.groups.find(g => g.id === gid);
         if (group) {
           group.collapsed = !group.collapsed;
+          // Also collapse/expand nested child groups
+          const setChildCollapsed = (parentId: number, collapsed: boolean) => {
+            state.groups.filter(g => g.parentId === parentId).forEach(g => {
+              g.collapsed = collapsed;
+              setChildCollapsed(g.id, collapsed);
+            });
+          };
+          setChildCollapsed(group.id, group.collapsed);
           renderCanvas();
           renderConnections();
           scheduleSave();
@@ -633,6 +839,14 @@ export function initInteractions(): void {
         const to = parseInt(label.dataset.connTo!);
         const conn = state.connections.find(c => c.from === from && c.to === to);
         if (conn) showConnContextMenu(e, conn);
+        return;
+      }
+      // Right-click on group bounding box (empty area)
+      const groupBg = (e.target as HTMLElement).closest('.group-bg') as HTMLElement | null;
+      if (groupBg) {
+        e.preventDefault();
+        const gid = parseInt(groupBg.dataset.groupId!);
+        showGroupContextMenu(e, gid);
       }
     });
 

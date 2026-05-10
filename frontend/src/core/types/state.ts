@@ -57,6 +57,7 @@ export const state: AppState = {
     'oklch(55% 0.12 200)',
   ],
   customLabels: [],
+  customLabelPacks: {},
   activeLabelPacks: ['general'],
   selectedCards: new Set<number>(),
   zoom: 1,
@@ -122,11 +123,11 @@ export function cycleConnectionLabel(conn: Connection): string {
   return conn.label;
 }
 
-/** Get all available labels from active packs + custom labels. */
+/** Get all available labels from active packs + custom packs + custom labels. */
 export function getAllLabels(): string[] {
   const merged: string[] = [];
   for (const packId of state.activeLabelPacks) {
-    const pack = LABEL_PRESETS[packId];
+    const pack = LABEL_PRESETS[packId] || state.customLabelPacks[packId];
     if (pack) {
       for (const label of pack.labels) {
         if (!merged.includes(label)) merged.push(label);
@@ -158,6 +159,7 @@ export function serializeState(): Record<string, unknown> {
     nextBranchId: state.nextBranchId,
     nextId: state.nextId,
     customLabels: state.customLabels,
+    customLabelPacks: state.customLabelPacks,
     activeLabelPacks: state.activeLabelPacks,
   };
 }
@@ -180,6 +182,7 @@ export function deserializeState(data: Record<string, unknown>): void {
   if (data.groups) state.groups = data.groups as AppState['groups'];
   if (typeof data.nextGroupId === 'number') state.nextGroupId = data.nextGroupId;
   if (data.customLabels) state.customLabels = data.customLabels as string[];
+  if (data.customLabelPacks) state.customLabelPacks = data.customLabelPacks as Record<string, { name: string; labels: string[] }>;
   if (data.activeLabelPacks) state.activeLabelPacks = data.activeLabelPacks as string[];
 }
 

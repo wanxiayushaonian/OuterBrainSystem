@@ -6,6 +6,7 @@ import { t } from '../i18n';
 import { renderCanvas, renderConnections } from '../features/canvas/renderer';
 import { renderInbox } from '../features/inbox/inbox';
 import { showToast } from '../shared/components/toast';
+import { autoExpand, initModalTextarea } from '../shared/utils/textarea';
 import type { VersionSnapshot } from '../core/types/types';
 
 // ── Save version ──
@@ -73,8 +74,12 @@ export function saveVersion(label: string, manual = false): void {
 
 // ── Save manual version ──
 export function saveManualVersion(): void {
-  document.getElementById('renameModal')!.classList.add('show');
-  (document.getElementById('renameInput') as HTMLInputElement)?.focus();
+  const modal = document.getElementById('renameModal')!;
+  const input = document.getElementById('renameInput') as HTMLTextAreaElement;
+  input.value = '';
+  input.style.height = 'auto';
+  modal.classList.add('show');
+  input?.focus();
 }
 
 /** Instant save with timestamp label, no modal. */
@@ -94,9 +99,10 @@ export function closeRenameModal(): void {
 }
 
 export function confirmRename(): void {
-  const name = (document.getElementById('renameInput') as HTMLInputElement)?.value.trim() || t('rename-default');
+  const name = (document.getElementById('renameInput') as HTMLTextAreaElement)?.value.trim() || t('rename-default');
   closeRenameModal();
-  (document.getElementById('renameInput') as HTMLInputElement).value = '';
+  (document.getElementById('renameInput') as HTMLTextAreaElement).value = '';
+  (document.getElementById('renameInput') as HTMLTextAreaElement).style.height = 'auto';
 
   // Delegate to saveVersion which handles branching, forkPoint, and future-version trimming
   saveVersion(name, true);
@@ -105,17 +111,22 @@ export function confirmRename(): void {
 
 // ── Branch management ──
 export function createBranchManual(): void {
+  const input = document.getElementById('branchNameInput') as HTMLTextAreaElement;
+  input.value = '';
+  input.style.height = 'auto';
   document.getElementById('branchModal')!.classList.add('show');
-  (document.getElementById('branchNameInput') as HTMLInputElement)?.focus();
+  input?.focus();
 }
 
 export function closeBranchModal(): void {
   document.getElementById('branchModal')!.classList.remove('show');
-  (document.getElementById('branchNameInput') as HTMLInputElement).value = '';
+  const input = document.getElementById('branchNameInput') as HTMLTextAreaElement;
+  input.value = '';
+  input.style.height = 'auto';
 }
 
 export function confirmCreateBranch(): void {
-  const nameInput = document.getElementById('branchNameInput') as HTMLInputElement;
+  const nameInput = document.getElementById('branchNameInput') as HTMLTextAreaElement;
   const name = nameInput?.value.trim() || 'branch-' + state.nextBranchId;
   if (state.branches.some(b => b.name === name)) {
     showToast('分支名已存在，请换一个名称');
@@ -706,22 +717,16 @@ export function initVersion(): void {
   // Rename modal
   const renameClose = document.getElementById('renameClose');
   const renameSave = document.getElementById('renameSave');
-  const renameInput = document.getElementById('renameInput') as HTMLInputElement | null;
   renameClose?.addEventListener('click', closeRenameModal);
   renameSave?.addEventListener('click', confirmRename);
-  renameInput?.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
-  });
+  initModalTextarea('renameInput', confirmRename);
 
   // Branch modal
   const branchClose = document.getElementById('branchClose');
   const branchCreate = document.getElementById('branchCreate');
-  const branchNameInput = document.getElementById('branchNameInput') as HTMLInputElement | null;
   branchClose?.addEventListener('click', closeBranchModal);
   branchCreate?.addEventListener('click', confirmCreateBranch);
-  branchNameInput?.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Enter') { e.preventDefault(); confirmCreateBranch(); }
-  });
+  initModalTextarea('branchNameInput', confirmCreateBranch);
 
   // Close dropdown on outside click
   document.addEventListener('click', (e: MouseEvent) => {

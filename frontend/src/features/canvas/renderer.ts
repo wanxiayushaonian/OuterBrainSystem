@@ -2,6 +2,7 @@
 // Canvas rendering: cards and connections
 // ═══════════════════════════════════════════════════════
 import { state, LABELS, getAllLabels } from '../../core/types/state';
+import { isGroupConnId } from '../../core/types/types';
 import { t, escapeHtml } from '../../i18n';
 import { showToast } from '../../shared/components/toast';
 import { computeHighlightMap, getDepthColor, getDepthGlow } from './highlight';
@@ -9,7 +10,19 @@ import type { Connection } from '../../core/types/types';
 import { renderCardContent, getCardTypeIcon } from '../../shared/components/card-renderer';
 
 // Track collapsed pill positions for connection routing
-const collapsedPillPositions = new Map<number, { x: number; y: number; w: number; h: number }>();
+export const collapsedPillPositions = new Map<number, { x: number; y: number; w: number; h: number }>();
+
+/** Get all card IDs in a group, including cards in nested child groups. */
+function getAllDescendantCardIds(groupId: number): number[] {
+  const group = state.groups.find(g => g.id === groupId);
+  if (!group) return [];
+  const ids = [...group.cardIds];
+  const children = state.groups.filter(g => g.parentId === groupId);
+  for (const child of children) {
+    ids.push(...getAllDescendantCardIds(child.id));
+  }
+  return ids;
+}
 
 // ── Source-based card accent colors ──
 const SOURCE_HUES = [255, 145, 85, 300, 35, 200, 170, 50, 280, 120];
@@ -114,6 +127,25 @@ function renderWikilinks(text: string): string {
 
 /** Get the center of a card element in canvas coordinates. Routes to collapsed pill if needed. */
 export function getCardCenter(cardId: number): { cx: number; cy: number } {
+  // Group connection (negative ID)
+  if (cardId < 0) {
+    const gid = -cardId;
+    const group = state.groups.find(g => g.id === gid);
+    if (!group) return { cx: 0, cy: 0 };
+    // Collapsed group → use pill
+    const pill = collapsedPillPositions.get(gid);
+    if (pill) return { cx: pill.x + pill.w / 2, cy: pill.y + pill.h / 2 };
+    // Expanded group → use bounding box center from DOM
+    const el = document.querySelector(`.canvas-group[data-group-id="${gid}"]`) as HTMLElement | null;
+    if (el) {
+      return {
+        cx: group.cardIds.length > 0 ? el.offsetLeft + el.offsetWidth / 2 : 0,
+        cy: group.cardIds.length > 0 ? el.offsetTop + el.offsetHeight / 2 : 0,
+      };
+    }
+    return { cx: 0, cy: 0 };
+  }
+
   // If card is in a collapsed group, use the pill's center
   for (const group of state.groups) {
     if (group.collapsed && group.cardIds.includes(cardId)) {
@@ -135,8 +167,98 @@ export function getCardCenter(cardId: number): { cx: number; cy: number } {
   return { cx: card.x + 120, cy: card.y + 40 };
 }
 
-/** Get the best port position on a card edge facing another point. Routes to collapsed pill if needed. */
+/** Get the explicit position of a named port (top/right/bottom/left) on a card or group. */
+export function getPortPosition(id: number, port: 'top' | 'right' | 'bottom' | 'left'): { x: number; y: number } {
+  // Group (negative ID)
+  if (id < 0) {
+    const gid = -id;
+    const pill = collapsedPillPositions.get(gid);
+    if (pill) {
+      const cx = pill.x + pill.w / 2;
+      const cy = pill.y + pill.h / 2;
+      if (port === 'top') return { x: cx, y: pill.y };
+      if (port === 'bottom') return { x: cx, y: pill.y + pill.h };
+      if (port === 'left') return { x: pill.x, y: cy };
+      return { x: pill.x + pill.w, y: cy };
+    }
+    const el = document.querySelector(`.canvas-group[data-group-id="${gid}"]`) as HTMLElement | null;
+    if (el) {
+      const gx = el.offsetLeft;
+      const gy = el.offsetTop;
+      const gw = el.offsetWidth;
+      const gh = el.offsetHeight;
+      const cx = gx + gw / 2;
+      const cy = gy + gh / 2;
+      if (port === 'top') return { x: cx, y: gy };
+      if (port === 'bottom') return { x: cx, y: gy + gh };
+      if (port === 'left') return { x: gx, y: cy };
+      return { x: gx + gw, y: cy };
+    }
+    return { x: 0, y: 0 };
+  }
+
+  // Card
+  const card = state.cards.find(c => c.id === id);
+  if (!card) return { x: 0, y: 0 };
+  const el = document.querySelector(`.canvas-card[data-id="${id}"]`) as HTMLElement | null;
+  const w = el ? el.offsetWidth : 240;
+  const h = el ? el.offsetHeight : 80;
+  const cx = card.x + w / 2;
+  const cy = card.y + h / 2;
+  // Indexed dock ports (e.g., 'right-0', 'left-2')
+  const dm = port.match(/^(left|right)-(\d+)$/);
+  if (dm) {
+    const idx = parseInt(dm[2]);
+    const dc = card.dockCount ?? 1;
+    const yOff = h * (idx + 1) / (dc + 1);
+    return dm[1] === 'left'
+      ? { x: card.x, y: card.y + yOff }
+      : { x: card.x + w, y: card.y + yOff };
+  }
+  if (port === 'top') return { x: cx, y: card.y };
+  if (port === 'bottom') return { x: cx, y: card.y + h };
+  if (port === 'left') return { x: card.x, y: cy };
+  return { x: card.x + w, y: cy };
+}
+
+/** Get the best port position on a card/group edge facing another point. Routes to collapsed pill if needed. */
 export function getCardPort(cardId: number, targetX: number, targetY: number): { x: number; y: number } {
+  // Group connection (negative ID)
+  if (cardId < 0) {
+    const gid = -cardId;
+    // Collapsed group → use pill
+    const pill = collapsedPillPositions.get(gid);
+    if (pill) {
+      const cx = pill.x + pill.w / 2;
+      const cy = pill.y + pill.h / 2;
+      const dx = targetX - cx;
+      const dy = targetY - cy;
+      if (Math.abs(dx) / pill.w > Math.abs(dy) / pill.h) {
+        return dx > 0 ? { x: pill.x + pill.w, y: cy } : { x: pill.x, y: cy };
+      } else {
+        return dy > 0 ? { x: cx, y: pill.y + pill.h } : { x: cx, y: pill.y };
+      }
+    }
+    // Expanded group → use bounding box from DOM
+    const el = document.querySelector(`.canvas-group[data-group-id="${gid}"]`) as HTMLElement | null;
+    if (el) {
+      const gx = el.offsetLeft;
+      const gy = el.offsetTop;
+      const gw = el.offsetWidth;
+      const gh = el.offsetHeight;
+      const cx = gx + gw / 2;
+      const cy = gy + gh / 2;
+      const dx = targetX - cx;
+      const dy = targetY - cy;
+      if (Math.abs(dx) / gw > Math.abs(dy) / gh) {
+        return dx > 0 ? { x: gx + gw, y: cy } : { x: gx, y: cy };
+      } else {
+        return dy > 0 ? { x: cx, y: gy + gh } : { x: cx, y: gy };
+      }
+    }
+    return { x: 0, y: 0 };
+  }
+
   // If card is in a collapsed group, use the pill's edge
   for (const group of state.groups) {
     if (group.collapsed && group.cardIds.includes(cardId)) {
@@ -246,7 +368,25 @@ function bezierMidpoint(x1: number, y1: number, x2: number, y2: number): { mx: n
 
 /** Check if two cards are in the same collapsed group (internal connection). */
 function isInSameCollapsedGroup(fromId: number, toId: number): boolean {
+  // Group connections (negative IDs) are never "internal" to a collapsed group
+  if (fromId < 0 || toId < 0) return false;
   return state.groups.some(g => g.collapsed && g.cardIds.includes(fromId) && g.cardIds.includes(toId));
+}
+
+/** Generate connection port HTML for a card, with multi-dock support on left/right edges. */
+function renderCardPorts(c: { id: number; dockCount?: number }): string {
+  const dc = c.dockCount ?? 1;
+  let html = `<div class="conn-port top" data-action="connect" data-card-id="${c.id}"></div>`;
+  for (let i = 0; i < dc; i++) {
+    const pct = ((i + 1) / (dc + 1) * 100).toFixed(1);
+    html += `<div class="conn-port right" data-action="connect" data-card-id="${c.id}" data-dock="${i}" style="top:${pct}%;right:-5px;transform:translateY(-50%)"></div>`;
+  }
+  html += `<div class="conn-port bottom" data-action="connect" data-card-id="${c.id}"></div>`;
+  for (let i = dc - 1; i >= 0; i--) {
+    const pct = ((i + 1) / (dc + 1) * 100).toFixed(1);
+    html += `<div class="conn-port left" data-action="connect" data-card-id="${c.id}" data-dock="${i}" style="top:${pct}%;left:-5px;transform:translateY(-50%)"></div>`;
+  }
+  return html;
 }
 
 export function renderCanvas(): void {
@@ -257,15 +397,33 @@ export function renderCanvas(): void {
   // Render group backgrounds first (below cards)
   collapsedPillPositions.clear();
   let groupsHtml = '';
-  for (const group of state.groups) {
-    const groupCards = group.cardIds.map(id => canvasCards.find(c => c.id === id)).filter(Boolean);
+  // Sort: top-level first, then nested (so children render inside parents)
+  const sortedGroups = [...state.groups].sort((a, b) => {
+    const aDepth = a.parentId ? 1 : 0;
+    const bDepth = b.parentId ? 1 : 0;
+    return aDepth - bDepth;
+  });
+  // Helper: check if any ancestor group is collapsed
+  const hasCollapsedAncestor = (gid: number): boolean => {
+    const g = state.groups.find(x => x.id === gid);
+    if (!g || !g.parentId) return false;
+    const parent = state.groups.find(x => x.id === g.parentId);
+    if (!parent) return false;
+    if (parent.collapsed) return true;
+    return hasCollapsedAncestor(parent.id);
+  };
+  for (const group of sortedGroups) {
+    // Skip child groups when their parent is collapsed (parent handles them)
+    if (group.parentId && hasCollapsedAncestor(group.id)) continue;
+    // For bounding box: include all descendant cards (nested children)
+    const allCardIds = getAllDescendantCardIds(group.id);
+    const groupCards = allCardIds.map(id => canvasCards.find(c => c.id === id)).filter(Boolean);
     if (groupCards.length === 0) continue;
 
     if (group.collapsed) {
       // Collapsed: show compact pill at the average position of the group cards
       const avgX = groupCards.reduce((s, c) => s + c!.x, 0) / groupCards.length;
       const avgY = groupCards.reduce((s, c) => s + c!.y, 0) / groupCards.length;
-      // Estimate pill size for connection routing
       const pillW = 160;
       const pillH = 36;
       collapsedPillPositions.set(group.id, { x: avgX, y: avgY, w: pillW, h: pillH });
@@ -303,12 +461,17 @@ export function renderCanvas(): void {
 
       groupsHtml += `<div class="canvas-group${group.locked ? ' group-locked' : ''}" data-group-id="${group.id}"
         style="left:${gx}px;top:${gy}px;width:${gw}px;height:${gh}px;background:${group.color}">
+        <div class="group-bg" data-group-id="${group.id}"></div>
         <div class="group-title" data-group-id="${group.id}">
           <span class="group-toggle" data-group-id="${group.id}">▾</span>
           <span class="group-name">${escapeHtml(group.name)}</span>
           <span class="group-count">${groupCards.length}</span>
           <span class="group-lock${group.locked ? ' locked' : ''}" data-group-id="${group.id}" title="${group.locked ? '解锁：允许卡片独立移动' : '锁定：卡片作为整体移动'}">${group.locked ? '🔗' : '🔓'}</span>
         </div>
+        <div class="conn-port top" data-action="connect" data-group-id="${group.id}"></div>
+        <div class="conn-port right" data-action="connect" data-group-id="${group.id}"></div>
+        <div class="conn-port bottom" data-action="connect" data-group-id="${group.id}"></div>
+        <div class="conn-port left" data-action="connect" data-group-id="${group.id}"></div>
       </div>`;
     }
   }
@@ -365,10 +528,7 @@ export function renderCanvas(): void {
       </button>
       <div class="card-body card-content" data-card-id="${c.id}"></div>
       ${statusTag}
-      <div class="conn-port top" data-action="connect" data-card-id="${c.id}"></div>
-      <div class="conn-port right" data-action="connect" data-card-id="${c.id}"></div>
-      <div class="conn-port bottom" data-action="connect" data-card-id="${c.id}"></div>
-      <div class="conn-port left" data-action="connect" data-card-id="${c.id}"></div>
+      ${renderCardPorts(c)}
     </div>`;
   }).join('');
 
@@ -377,8 +537,12 @@ export function renderCanvas(): void {
     const container = inner.querySelector(`.card-content[data-card-id="${c.id}"]`) as HTMLElement;
     if (!container) return;
 
-    // Use specialized renderer if card has a type
-    if (c.type && ['distillation', 'socratic', 'flow_analysis', 'choice', 'vote', 'conclusion'].includes(c.type)) {
+    // Image cards
+    if (c.type === 'image' && c.metadata?.imageData) {
+      const nameHtml = c.metadata?.imageName ? `<div class="card-image-name">${escapeHtml(c.metadata.imageName)}</div>` : '';
+      container.innerHTML = `${nameHtml}<img src="${c.metadata.imageData}" alt="pasted image" />`;
+    } else if (c.type && ['distillation', 'socratic', 'flow_analysis', 'choice', 'vote', 'conclusion'].includes(c.type)) {
+      // Use specialized renderer if card has a type
       renderCardContent(c, container);
     } else {
       // Fallback to default text rendering
@@ -403,8 +567,12 @@ export function renderConnections(): void {
   svg.innerHTML = buildArrowDefs() + state.connections
     .filter(conn => !isInSameCollapsedGroup(conn.from, conn.to))
     .map(conn => {
-    const from = getCardPort(conn.from, getCardCenter(conn.to).cx, getCardCenter(conn.to).cy);
-    const to = getCardPort(conn.to, from.x, from.y);
+    const from = conn.fromPort
+      ? getPortPosition(conn.from, conn.fromPort)
+      : getCardPort(conn.from, getCardCenter(conn.to).cx, getCardCenter(conn.to).cy);
+    const to = conn.toPort
+      ? getPortPosition(conn.to, conn.toPort)
+      : getCardPort(conn.to, from.x, from.y);
 
     const color = getLabelColor(conn.label);
     const pathD = bezierPath(from.x, from.y, to.x, to.y);
@@ -412,14 +580,18 @@ export function renderConnections(): void {
     const arrowId = getArrowId(conn.label);
 
     // Determine highlight state for this connection
-    const fromHighlighted = highlightMap?.has(conn.from) ?? true;
-    const toHighlighted = highlightMap?.has(conn.to) ?? true;
+    const fromHighlighted = isGroupConnId(conn.from) ? true : (highlightMap?.has(conn.from) ?? true);
+    const toHighlighted = isGroupConnId(conn.to) ? true : (highlightMap?.has(conn.to) ?? true);
     const bothHighlighted = fromHighlighted && toHighlighted;
     const connDim = highlightMap && !bothHighlighted;
 
+    // Group connections get dashed style
+    const isGroupConn = isGroupConnId(conn.from) || isGroupConnId(conn.to);
+    const dashArray = isGroupConn ? ' stroke-dasharray="6 4"' : '';
+
     // Create label element
     const label = document.createElement('div');
-    label.className = `conn-label${connDim ? ' conn-dim' : (bothHighlighted && highlightMap ? ' conn-highlight' : '')}`;
+    label.className = `conn-label${connDim ? ' conn-dim' : (bothHighlighted && highlightMap ? ' conn-highlight' : '')}${isGroupConn ? ' conn-group' : ''}`;
     label.textContent = conn.label;
     label.style.left = mid.mx + 'px';
     label.style.top = mid.my + 'px';
@@ -432,19 +604,21 @@ export function renderConnections(): void {
     const strokeWidth = bothHighlighted && highlightMap ? '2.5' : '1.5';
     const opacity = connDim ? '0.12' : '1';
 
-    return `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="${strokeWidth}" opacity="${opacity}" marker-end="url(#${arrowId})"/>`;
+    return `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="${strokeWidth}" opacity="${opacity}"${dashArray} marker-end="url(#${arrowId})"/>`;
   }).join('');
 }
 
 /** Render a temporary bezier curve while dragging a connection. */
-export function renderTempConnection(fromId: number, toX: number, toY: number): void {
+export function renderTempConnection(fromId: number, toX: number, toY: number, fromPort?: 'top' | 'right' | 'bottom' | 'left'): void {
   const svg = document.getElementById('connectionsSvg');
   if (!svg) return;
 
   svg.querySelector('.temp-line')?.remove();
 
-  const fromPort = getCardPort(fromId, toX, toY);
-  const pathD = bezierPath(fromPort.x, fromPort.y, toX, toY);
+  const start = fromPort
+    ? getPortPosition(fromId, fromPort)
+    : getCardPort(fromId, toX, toY);
+  const pathD = bezierPath(start.x, start.y, toX, toY);
 
   svg.innerHTML += `<path class="temp-line" d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.5"/>`;
 }

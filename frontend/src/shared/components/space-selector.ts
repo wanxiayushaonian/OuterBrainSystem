@@ -8,6 +8,7 @@ import { renderCanvas, renderConnections } from '../../features/canvas/renderer'
 import { renderInbox } from '../../features/inbox/inbox';
 import { updateTimeline } from '../../version/manager';
 import { t } from '../../i18n';
+import { initModalTextarea } from '../utils/textarea';
 
 function renderAll(): void {
   renderInbox();
@@ -45,13 +46,9 @@ export function initSpaceSelector(): void {
   // Space creation modal
   const spaceClose = document.getElementById('spaceClose');
   const spaceCreate = document.getElementById('spaceCreate');
-  const spaceNameInput = document.getElementById('spaceNameInput') as HTMLInputElement | null;
   spaceClose?.addEventListener('click', closeSpaceModal);
   spaceCreate?.addEventListener('click', () => confirmSpaceModal());
-  spaceNameInput?.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Enter') { e.preventDefault(); confirmSpaceModal(); }
-    if (e.key === 'Escape') closeSpaceModal();
-  });
+  initModalTextarea('spaceNameInput', () => confirmSpaceModal(), closeSpaceModal);
 }
 
 function updateSpaceName(): void {
@@ -137,17 +134,22 @@ export function setSpaceDropdownRef(el: HTMLElement): void {
 }
 
 export function openSpaceModal(): void {
+  const input = document.getElementById('spaceNameInput') as HTMLTextAreaElement;
+  input.value = '';
+  input.style.height = 'auto';
   document.getElementById('spaceModal')!.classList.add('show');
-  (document.getElementById('spaceNameInput') as HTMLInputElement)?.focus();
+  input?.focus();
 }
 
 export function closeSpaceModal(): void {
   document.getElementById('spaceModal')!.classList.remove('show');
-  (document.getElementById('spaceNameInput') as HTMLInputElement).value = '';
+  const input = document.getElementById('spaceNameInput') as HTMLTextAreaElement;
+  input.value = '';
+  input.style.height = 'auto';
 }
 
 export async function confirmSpaceModal(): Promise<void> {
-  const nameInput = document.getElementById('spaceNameInput') as HTMLInputElement;
+  const nameInput = document.getElementById('spaceNameInput') as HTMLTextAreaElement;
   const name = nameInput?.value.trim();
   if (!name) return;
   closeSpaceModal();
