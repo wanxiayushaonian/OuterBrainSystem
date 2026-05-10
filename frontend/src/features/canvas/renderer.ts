@@ -8,6 +8,8 @@ import { showToast } from '../../shared/components/toast';
 import { computeHighlightMap, getDepthColor, getDepthGlow } from './highlight';
 import type { Connection } from '../../core/types/types';
 import { renderCardContent, getCardTypeIcon } from '../../shared/components/card-renderer';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 // Track collapsed pill positions for connection routing
 export const collapsedPillPositions = new Map<number, { x: number; y: number; w: number; h: number }>();
@@ -125,10 +127,8 @@ function renderWikilinks(text: string): string {
   });
 }
 
-declare const katex: { renderToString(tex: string, opts?: { displayMode?: boolean; throwOnError?: boolean }): string } | undefined;
-
 function renderLatex(html: string): string {
-  if (!html.includes('$') || typeof katex === 'undefined') return html;
+  if (!html.includes('$')) return html;
   // Block math: $$...$$
   html = html.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex: string) => {
     try { return `<div class="katex-block">${katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })}</div>`; }
