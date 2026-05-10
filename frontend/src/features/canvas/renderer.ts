@@ -125,6 +125,23 @@ function renderWikilinks(text: string): string {
   });
 }
 
+declare const katex: { renderToString(tex: string, opts?: { displayMode?: boolean; throwOnError?: boolean }): string } | undefined;
+
+function renderLatex(html: string): string {
+  if (!html.includes('$') || typeof katex === 'undefined') return html;
+  // Block math: $$...$$
+  html = html.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex: string) => {
+    try { return `<div class="katex-block">${katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })}</div>`; }
+    catch { return `$$${tex}$$`; }
+  });
+  // Inline math: $...$ (not preceded/followed by $)
+  html = html.replace(/(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)/g, (_, tex: string) => {
+    try { return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false }); }
+    catch { return `$${tex}$`; }
+  });
+  return html;
+}
+
 /** Get the center of a card element in canvas coordinates. Routes to collapsed pill if needed. */
 export function getCardCenter(cardId: number): { cx: number; cy: number } {
   // Group connection (negative ID)
@@ -546,7 +563,7 @@ export function renderCanvas(): void {
       renderCardContent(c, container);
     } else {
       // Fallback to default text rendering
-      container.innerHTML = renderWikilinks(formatCardText(c.text));
+      container.innerHTML = renderLatex(renderWikilinks(formatCardText(c.text)));
     }
   });
   renderConnections();

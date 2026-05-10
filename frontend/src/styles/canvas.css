@@ -99,6 +99,13 @@
   word-break: break-all;
   line-height: 1.3;
 }
+.canvas-card .card-body .katex-block {
+  margin: 6px 0;
+  overflow-x: auto;
+  text-align: center;
+}
+.canvas-card .card-body .katex-block .katex { font-size: 0.95em; }
+.canvas-card .card-body .katex { font-size: 0.9em; }
 .canvas-card .card-status-tag {
   display: inline-block;
   font: 10px/1 var(--font-mono);
