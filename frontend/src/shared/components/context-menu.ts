@@ -12,6 +12,7 @@ import { autoExpand, initModalTextarea } from '../utils/textarea';
 import type { CardGroup } from '../../core/types/types';
 
 let contextTarget: number | null = null;
+let editingCardId: number | null = null;
 let inboxContextTarget: number | null = null;
 let connContextTarget: { from: number; to: number; label: string } | null = null;
 let groupContextTarget: number | null = null;
@@ -180,6 +181,45 @@ export function closeGroupModal(): void {
   renameGroupId = null;
 }
 
+// ── Card edit modal ──
+export function openCardEditModal(cardId?: number): void {
+  const id = cardId ?? contextTarget;
+  if (id === null) return;
+  const card = state.cards.find(c => c.id === id);
+  if (!card) return;
+  editingCardId = id;
+  const modal = document.getElementById('cardEditModal')!;
+  const input = document.getElementById('cardEditInput') as HTMLTextAreaElement;
+  input.value = card.text;
+  input.style.height = 'auto';
+  modal.classList.add('show');
+  requestAnimationFrame(() => { autoExpand(input); });
+  input.focus();
+}
+
+export function closeCardEditModal(): void {
+  document.getElementById('cardEditModal')!.classList.remove('show');
+  const input = document.getElementById('cardEditInput') as HTMLTextAreaElement;
+  input.value = '';
+  input.style.height = 'auto';
+  editingCardId = null;
+}
+
+export function confirmCardEditModal(): void {
+  if (editingCardId === null) return;
+  const card = state.cards.find(c => c.id === editingCardId);
+  if (!card) return;
+  const input = document.getElementById('cardEditInput') as HTMLTextAreaElement;
+  const newText = input.value.trim();
+  if (!newText) { closeCardEditModal(); return; }
+  closeCardEditModal();
+  pushUndo();
+  card.text = newText;
+  renderCanvas();
+  renderConnections();
+  scheduleSave();
+}
+
 export function confirmGroupModal(): void {
   const nameInput = document.getElementById('groupNameInput') as HTMLTextAreaElement;
   const name = nameInput?.value.trim() || t('group-unnamed') || '未命名分组';
@@ -226,17 +266,7 @@ export function confirmGroupModal(): void {
 export function contextAction(action: string, param?: number): void {
   closeAllContextMenus();
   if (action === 'edit') {
-    if (contextTarget === null) return;
-    const card = state.cards.find(c => c.id === contextTarget);
-    if (!card) return;
-    const newText = prompt(t('edit-card'), card.text);
-    if (newText !== null && newText.trim()) {
-      pushUndo();
-      card.text = newText.trim();
-      renderCanvas();
-      renderConnections();
-      scheduleSave();
-    }
+    openCardEditModal();
   } else if (action === 'question') {
     quickInquiry();
   } else if (action === 'set-question') {
@@ -575,4 +605,11 @@ export function initContextMenu(): void {
   groupClose?.addEventListener('click', closeGroupModal);
   groupCreate?.addEventListener('click', confirmGroupModal);
   initModalTextarea('groupNameInput', confirmGroupModal, closeGroupModal);
+
+  // Card edit modal
+  const cardEditClose = document.getElementById('cardEditClose');
+  const cardEditSave = document.getElementById('cardEditSave');
+  cardEditClose?.addEventListener('click', closeCardEditModal);
+  cardEditSave?.addEventListener('click', confirmCardEditModal);
+  initModalTextarea('cardEditInput', confirmCardEditModal, closeCardEditModal);
 }

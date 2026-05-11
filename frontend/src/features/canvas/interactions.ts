@@ -9,6 +9,7 @@ import { zoomCanvas, screenToCanvas, applyTransform, updateZoomDisplay } from '.
 import { renderInbox } from '../inbox/inbox';
 import { showToast } from '../../shared/components/toast';
 import { openCardAiPopup } from '../chat/card-popup';
+import { openCardEditModal } from '../../shared/components/context-menu';
 import { alignLeft, alignRight, alignTop, alignBottom, alignCenterH, alignCenterV, distributeH, distributeV } from './align';
 import { openCapture, closeCapture } from '../../features/capture/capture';
 import { closeAiPanel } from '../chat/panel';
@@ -99,15 +100,7 @@ export function startConnect(e: MouseEvent, id: number): void {
 // ── Canvas card double-click (edit) ──
 export function onCanvasCardDblClick(e: MouseEvent, id: number): void {
   e.stopPropagation();
-  const card = state.cards.find(c => c.id === id);
-  if (!card) return;
-  const newText = prompt(t('edit-card'), card.text);
-  if (newText !== null && newText.trim()) {
-    card.text = newText.trim();
-    renderCanvas();
-    renderConnections();
-    scheduleSave();
-  }
+  openCardEditModal(id);
 }
 
 // ── Document mousemove: drag, connect temp line, selection box, pan ──
