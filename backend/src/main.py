@@ -126,6 +126,21 @@ def login(req: LoginRequest):
     return {"ok": True}
 
 
+# ── Serve login.html (works in both dev and production) ──
+_LOGIN_HTML_CANDIDATES = [
+    Path("static/login.html"),              # production (Docker)
+    Path(__file__).parent.parent.parent / "frontend" / "public" / "login.html",  # dev
+]
+
+
+@app.get("/login")
+def serve_login():
+    for p in _LOGIN_HTML_CANDIDATES:
+        if p.is_file():
+            return FileResponse(p)
+    raise HTTPException(404, detail="login.html not found")
+
+
 # ── Static file serving (production) ──
 STATIC_DIR = Path("static")
 if STATIC_DIR.is_dir():
