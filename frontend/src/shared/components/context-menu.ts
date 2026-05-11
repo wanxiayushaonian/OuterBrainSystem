@@ -225,7 +225,19 @@ export function confirmGroupModal(): void {
 // ── Canvas card context action ──
 export function contextAction(action: string, param?: number): void {
   closeAllContextMenus();
-  if (action === 'question') {
+  if (action === 'edit') {
+    if (contextTarget === null) return;
+    const card = state.cards.find(c => c.id === contextTarget);
+    if (!card) return;
+    const newText = prompt(t('edit-card'), card.text);
+    if (newText !== null && newText.trim()) {
+      pushUndo();
+      card.text = newText.trim();
+      renderCanvas();
+      renderConnections();
+      scheduleSave();
+    }
+  } else if (action === 'question') {
     quickInquiry();
   } else if (action === 'set-question') {
     if (contextTarget === null) return;
@@ -494,7 +506,8 @@ export function initContextMenu(): void {
       const target = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null;
       if (!target) return;
       const action = target.dataset.action;
-      if (action === 'ctx-question') contextAction('question');
+      if (action === 'ctx-edit') contextAction('edit');
+      else if (action === 'ctx-question') contextAction('question');
       else if (action === 'ctx-set-question') contextAction('set-question');
       else if (action === 'ctx-conclude') contextAction('conclude');
       else if (action === 'ctx-delete') contextAction('delete');
