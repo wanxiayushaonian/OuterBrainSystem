@@ -9,12 +9,11 @@ import { zoomCanvas, screenToCanvas, applyTransform, updateZoomDisplay } from '.
 import { renderInbox } from '../inbox/inbox';
 import { showToast } from '../../shared/components/toast';
 import { openCardAiPopup } from '../chat/card-popup';
-import { openCardEditModal } from '../../shared/components/context-menu';
 import { alignLeft, alignRight, alignTop, alignBottom, alignCenterH, alignCenterV, distributeH, distributeV } from './align';
 import { openCapture, closeCapture } from '../../features/capture/capture';
 import { closeAiPanel } from '../chat/panel';
 import { saveManualVersion, quickSaveVersion, createBranchManual, closeRenameModal, closeBranchModal } from '../../version/manager';
-import { contextAction, showCanvasContextMenu, showInboxContextMenu, showConnContextMenu, showGroupContextMenu, closeAllContextMenus, closeGroupModal } from '../../shared/components/context-menu';
+import { contextAction, showCanvasContextMenu, showInboxContextMenu, showConnContextMenu, showGroupContextMenu, closeAllContextMenus, closeGroupModal, openCardEditModal } from '../../shared/components/context-menu';
 import { closeSpaceModal } from '../../shared/components/space-selector';
 import type { Connection } from '../../core/types/types';
 
