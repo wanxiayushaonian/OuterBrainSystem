@@ -2,9 +2,11 @@
 import json
 import logging
 import asyncio
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from typing import Dict, Any
 
 from src.llm.client import chat_multi_stream, get_cfg, CANVAS_TOOLS, execute_agent_tool, L3_TOOL_NAMES
@@ -21,6 +23,7 @@ from src.core.runtime.types import Message, ToolCall
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 class ChatRequest(BaseModel):
@@ -35,10 +38,11 @@ MAX_ROUNDS = 3
 
 
 @router.post("/stream")
-async def chat_stream(request: ChatRequest):
+@limiter.limit("10/minute")
+async def chat_stream(request: Request, body: ChatRequest):
     """Streaming chat endpoint — delegates to client.py system."""
     cfg = get_cfg()
-    session_id = request.session_id
+    session_id = body.session_id
 
     # ── Save user message to session ──
     storage = SessionStorage()
@@ -46,11 +50,11 @@ async def chat_stream(request: ChatRequest):
     session_manager = SessionManager(storage)
     await session_manager.add_message(session_id, Message(
         role="user",
-        content=request.input,
+        content=body.input,
     ))
 
     # Build canvas context
-    ctx = request.context
+    ctx = body.context
     cards = ctx.get("cards", [])
     connections = ctx.get("connections", [])
     groups = ctx.get("groups", [])
@@ -102,7 +106,7 @@ async def chat_stream(request: ChatRequest):
 {canvas_summary}"""
 
     # Build messages array
-    messages = [{"role": "user", "content": request.input}]
+    messages = [{"role": "user", "content": body.input}]
     main_loop = asyncio.get_event_loop()
 
     def event_stream():
@@ -208,7 +212,7 @@ async def chat_stream(request: ChatRequest):
 
         except Exception as e:
             logger.error(f"Streaming chat failed: {e}")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Chat service unavailable'})}\n\n"
         finally:
             if session_id:
                 with _tool_result_lock:

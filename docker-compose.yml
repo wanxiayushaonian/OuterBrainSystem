@@ -1,0 +1,18 @@
+services:
+  nexus:
+    build: .
+    ports:
+      - "${NEXUS_PORT:-8000}:8000"
+    env_file:
+      - backend/.env
+    environment:
+      - NEXUS_ENV=production
+      - NEXUS_API_TOKEN=${NEXUS_API_TOKEN}
+      - NEXUS_CORS_ORIGINS=${NEXUS_CORS_ORIGINS:-}
+      - NEXUS_DB_PATH=/data/nexus.db
+    volumes:
+      - nexus-data:/data
+    restart: unless-stopped
+
+volumes:
+  nexus-data:

@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════
 // LLM API client — connects to backend /api/llm/*
 // ═══════════════════════════════════════════════════════
+import { getAuthHeaders, handleAuthError } from '../../shared/utils/auth';
 
 const API_BASE = '/api/llm';
 
@@ -29,9 +30,10 @@ export interface InquiryResponse {
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(body),
   });
+  if (res.status === 401) { handleAuthError(res); throw new Error('Unauthorized'); }
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`API error ${res.status}: ${err}`);

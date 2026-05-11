@@ -44,6 +44,19 @@
   padding: 2px 6px;
   border-radius: 10px;
 }
+.sidebar-logout {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: all var(--transition);
+  margin-left: auto;
+}
+.sidebar-logout:hover { color: var(--fg); background: var(--bg); }
 .sidebar-search {
   margin: 0 10px 8px;
   flex-shrink: 0;

@@ -3,6 +3,7 @@
 # ═══════════════════════════════════════════════════════
 import json
 import logging
+import os
 import sqlite3
 import time
 from pathlib import Path
@@ -10,7 +11,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).parent.parent.parent / "run" / "nexus.db"
+_default_db_path = Path(__file__).parent.parent.parent / "run" / "nexus.db"
+DB_PATH = Path(os.environ.get("NEXUS_DB_PATH", str(_default_db_path)))
 
 _conn: sqlite3.Connection | None = None
 

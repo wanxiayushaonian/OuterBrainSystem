@@ -1,13 +1,21 @@
 # ═══════════════════════════════════════════════════════
 # Nexus Backend — FastAPI Application
 # ═══════════════════════════════════════════════════════
+import logging
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from omegaconf import OmegaConf
+from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.db.router import router as spaces_router
 from src.llm.router import router as llm_router
@@ -28,6 +36,8 @@ from src.providers.anthropic import (
     GetCardDetailTool,
 )
 
+logger = logging.getLogger(__name__)
+
 # Register tools
 ToolRegistry.register(AddCardTool())
 ToolRegistry.register(EditCardTool())
@@ -46,13 +56,45 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 _conf_path = Path(__file__).parent.parent / "run" / "conf" / "config.yaml"
 cfg = OmegaConf.load(_conf_path)
 
-app = FastAPI(title="Nexus API", version="0.1.0")
+# ── Environment-aware configuration ──
+NEXUS_ENV = os.environ.get("NEXUS_ENV", "development")
+IS_PRODUCTION = NEXUS_ENV == "production"
 
-# CORS
+
+# ── Auth Middleware ──
+class AuthMiddleware(BaseHTTPMiddleware):
+    SKIP_PATHS = {"/api/health", "/api/auth/login", "/docs", "/openapi.json", "/redoc"}
+
+    async def dispatch(self, request: Request, call_next):
+        token = os.environ.get("NEXUS_API_TOKEN")
+        if token and request.url.path.startswith("/api/"):
+            if request.url.path not in self.SKIP_PATHS:
+                auth = request.headers.get("Authorization", "")
+                if auth != f"Bearer {token}":
+                    raise HTTPException(status_code=401, detail="Unauthorized")
+        return await call_next(request)
+
+
+limiter = Limiter(key_func=get_remote_address)
+
+app = FastAPI(title="Nexus API", version="0.1.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Auth middleware (only enforces when NEXUS_API_TOKEN is set)
+app.add_middleware(AuthMiddleware)
+
+# CORS — production uses env-configured origins
+if IS_PRODUCTION:
+    cors_origins_str = os.environ.get("NEXUS_CORS_ORIGINS", "")
+    cors_origins = [o.strip() for o in cors_origins_str.split(",") if o.strip()]
+else:
+    cors_origins = list(cfg.server.cors_origins)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=list(cfg.server.cors_origins),
-    allow_credentials=True,
+    allow_origins=cors_origins if cors_origins else ["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -69,6 +111,42 @@ def health():
     return {"status": "ok", "version": "0.1.0"}
 
 
+# ── Auth endpoint ──
+class LoginRequest(BaseModel):
+    token: str
+
+
+@app.post("/api/auth/login")
+def login(req: LoginRequest):
+    expected = os.environ.get("NEXUS_API_TOKEN", "")
+    if not expected:
+        raise HTTPException(status_code=503, detail="Auth not configured")
+    if req.token != expected:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return {"ok": True}
+
+
+# ── Static file serving (production) ──
+STATIC_DIR = Path("static")
+if STATIC_DIR.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(STATIC_DIR / "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(404)
+        # Serve login.html directly
+        if full_path == "login":
+            login_file = STATIC_DIR / "login.html"
+            if login_file.is_file():
+                return FileResponse(login_file)
+        file_path = STATIC_DIR / full_path
+        if file_path.is_file():
+            from fastapi.responses import FileResponse
+            return FileResponse(file_path)
+        return FileResponse(STATIC_DIR / "index.html")
+
+
 if __name__ == "__main__":
     import uvicorn
 
@@ -76,5 +154,5 @@ if __name__ == "__main__":
         "src.main:app",
         host=cfg.server.host,
         port=cfg.server.port,
-        reload=True,
+        reload=not IS_PRODUCTION,
     )

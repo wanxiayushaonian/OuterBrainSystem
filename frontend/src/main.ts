@@ -39,6 +39,7 @@ import { openAiPanel } from './features/chat/panel';
 import { showToast } from './shared/components/toast';
 import './shared/components/gravity-wall';
 import { createSpace, loadSpaceState } from './core/api/spaces';
+import { isAuthenticated } from './shared/utils/auth';
 
 function renderAll(): void {
   // Re-render whichever sidebar view is active
@@ -52,6 +53,12 @@ function renderAll(): void {
 }
 
 async function init(): Promise<void> {
+  // Auth check — redirect to login if not authenticated
+  if (!isAuthenticated()) {
+    window.location.href = '/login';
+    return;
+  }
+
   // Initialize i18n with render callback
   initLang(renderAll);
 
@@ -162,6 +169,12 @@ async function init(): Promise<void> {
   document.getElementById('zoomOutBtn')?.addEventListener('click', () => zoomCanvas(-0.1));
   document.getElementById('zoomInBtn')?.addEventListener('click', () => zoomCanvas(0.1));
   document.getElementById('zoomFitBtn')?.addEventListener('click', () => fitCanvas());
+
+  // Logout button
+  document.getElementById('logoutBtn')?.addEventListener('click', () => {
+    localStorage.removeItem('nexus-token');
+    window.location.href = '/login';
+  });
 
   // Topbar capture button
   document.getElementById('topbarCaptureBtn')?.addEventListener('click', openCapture);

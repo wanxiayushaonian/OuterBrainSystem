@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════
 // Spaces API client — connects to backend /api/spaces/*
 // ═══════════════════════════════════════════════════════
+import { getAuthHeaders, handleAuthError } from '../../shared/utils/auth';
 
 const API_BASE = '/api/spaces';
 
@@ -12,7 +13,8 @@ export interface SpaceInfo {
 }
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`);
+  const res = await fetch(`${API_BASE}${path}`, { headers: getAuthHeaders() });
+  if (res.status === 401) { handleAuthError(res); throw new Error('Unauthorized'); }
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -20,9 +22,10 @@ async function get<T>(path: string): Promise<T> {
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(body),
   });
+  if (res.status === 401) { handleAuthError(res); throw new Error('Unauthorized'); }
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -30,15 +33,17 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 async function put<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(body),
   });
+  if (res.status === 401) { handleAuthError(res); throw new Error('Unauthorized'); }
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
   return res.json();
 }
 
 async function del<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { method: 'DELETE' });
+  const res = await fetch(`${API_BASE}${path}`, { method: 'DELETE', headers: getAuthHeaders() });
+  if (res.status === 401) { handleAuthError(res); throw new Error('Unauthorized'); }
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -46,9 +51,10 @@ async function del<T>(path: string): Promise<T> {
 async function patch<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(body),
   });
+  if (res.status === 401) { handleAuthError(res); throw new Error('Unauthorized'); }
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
   return res.json();
 }

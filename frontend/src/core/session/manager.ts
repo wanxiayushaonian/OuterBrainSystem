@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════
 import type { Session } from './types';
 import { SessionError, ApiError } from '../../shared/utils/error';
+import { getAuthHeaders } from '../../shared/utils/auth';
 
 export class SessionManager {
   private sessions: Map<string, Session> = new Map();
@@ -16,7 +17,7 @@ export class SessionManager {
     try {
       const response = await fetch('/api/sessions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           space_id: spaceId,
           provider_id: providerId,
@@ -55,7 +56,7 @@ export class SessionManager {
 
     try {
       // Fetch from server
-      const response = await fetch(`/api/sessions/${sessionId}`);
+      const response = await fetch(`/api/sessions/${sessionId}`, { headers: getAuthHeaders() });
       if (!response.ok) {
         if (response.status === 404) {
           throw SessionError.notFound(sessionId);
@@ -78,7 +79,7 @@ export class SessionManager {
   }
 
   async listSessions(spaceId: number, limit: number = 50): Promise<Session[]> {
-    const response = await fetch(`/api/sessions?space_id=${spaceId}&limit=${limit}`);
+    const response = await fetch(`/api/sessions?space_id=${spaceId}&limit=${limit}`, { headers: getAuthHeaders() });
     if (!response.ok) {
       throw new Error(`Failed to list sessions: ${response.statusText}`);
     }
@@ -96,7 +97,8 @@ export class SessionManager {
   async deleteSession(sessionId: string): Promise<void> {
     try {
       const response = await fetch(`/api/sessions/${sessionId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
@@ -120,7 +122,7 @@ export class SessionManager {
   async updateTitle(sessionId: string, title: string): Promise<void> {
     const response = await fetch(`/api/sessions/${sessionId}/title`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ title })
     });
 

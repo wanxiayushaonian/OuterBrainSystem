@@ -1,0 +1,9 @@
+node_modules/
+dist/
+backend/.venv/
+backend/run/nexus.db
+backend/data/
+.claude/
+.git/
+*.md
+.env

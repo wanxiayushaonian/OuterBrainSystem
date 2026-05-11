@@ -2,6 +2,7 @@
 // Anthropic runtime adapter — SSE bridge to backend
 // ═══════════════════════════════════════════════════════
 import type { ChatRuntime, StreamChunk, CanvasContext } from './types';
+import { getAuthHeaders, handleAuthError } from '../../shared/utils/auth';
 
 export class AnthropicRuntime implements ChatRuntime {
   private abortController: AbortController | null = null;
@@ -21,7 +22,7 @@ export class AnthropicRuntime implements ChatRuntime {
     try {
       const response = await fetch('/api/chat/stream', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           session_id: (window as any).__currentSessionId || 'default',
           provider_id: 'anthropic',
@@ -36,6 +37,10 @@ export class AnthropicRuntime implements ChatRuntime {
         signal: this.abortController.signal
       });
 
+      if (response.status === 401) {
+        handleAuthError(response);
+        throw new Error('Unauthorized');
+      }
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -147,7 +152,7 @@ export class AnthropicRuntime implements ChatRuntime {
       const sessionId = (window as any).__currentSessionId || 'default';
       await fetch('/api/llm/tool-result', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           session_id: sessionId,
           tool_use_id: toolUseId,

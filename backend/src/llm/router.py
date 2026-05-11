@@ -4,8 +4,10 @@
 import json
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from src.llm.client import chat, chat_json, chat_multi, chat_multi_stream, get_cfg, CANVAS_TOOLS
 from src.llm.prompts import (
@@ -54,6 +56,7 @@ _tool_result_events: dict[str, threading.Event] = {}
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 def _ensure_dict(result: dict | list, fallback: dict) -> dict:
@@ -65,7 +68,8 @@ def _ensure_dict(result: dict | list, fallback: dict) -> dict:
 
 
 @router.post("/compress", response_model=CompressResponse)
-def compress_title(req: CompressRequest):
+@limiter.limit("30/minute")
+def compress_title(request: Request, req: CompressRequest):
     """Compress a thought into a short title."""
     cfg = get_cfg()
     system = TITLE_COMPRESS_SYSTEM.format(max_length=req.max_length)
@@ -81,7 +85,7 @@ def compress_title(req: CompressRequest):
         ).strip().strip('"').strip("'")
     except Exception as e:
         logger.error(f"Title compression failed: {e}")
-        raise HTTPException(status_code=502, detail=f"LLM error: {e}")
+        raise HTTPException(status_code=502, detail="LLM service unavailable")
 
     return CompressResponse(
         title=title,
@@ -124,7 +128,8 @@ def _fallback_keywords(text: str, max_keywords: int) -> list[str]:
 
 
 @router.post("/keywords", response_model=KeywordsResponse)
-def extract_keywords(req: KeywordsRequest):
+@limiter.limit("30/minute")
+def extract_keywords(request: Request, req: KeywordsRequest):
     """Extract keywords from a thought."""
     cfg = get_cfg()
     system = KEYWORD_EXTRACT_SYSTEM.format(max_keywords=req.max_keywords)
@@ -149,7 +154,8 @@ def extract_keywords(req: KeywordsRequest):
 
 
 @router.post("/flow", response_model=FlowResponse)
-def analyze_flow(req: FlowRequest):
+@limiter.limit("10/minute")
+def analyze_flow(request: Request, req: FlowRequest):
     """Analyze a thinking chain and suggest next steps."""
     cfg = get_cfg()
     cards_json = json.dumps(req.cards, ensure_ascii=False, indent=2)
@@ -183,7 +189,8 @@ def analyze_flow(req: FlowRequest):
 
 
 @router.post("/inquiry", response_model=InquiryResponse)
-def ai_inquiry(req: InquiryRequest):
+@limiter.limit("10/minute")
+def ai_inquiry(request: Request, req: InquiryRequest):
     """Socratic inquiry on selected cards."""
     cfg = get_cfg()
     cards_json = json.dumps(req.cards, ensure_ascii=False, indent=2)
@@ -217,7 +224,8 @@ def ai_inquiry(req: InquiryRequest):
 
 
 @router.post("/discover", response_model=DiscoverResponse)
-def discover_relationships(req: DiscoverRequest):
+@limiter.limit("10/minute")
+def discover_relationships(request: Request, req: DiscoverRequest):
     """Discover potential relationships between cards."""
     cfg = get_cfg()
     cards_json = json.dumps(req.cards, ensure_ascii=False, indent=2)
@@ -259,7 +267,8 @@ def discover_relationships(req: DiscoverRequest):
 
 
 @router.post("/debate", response_model=DebateResponse)
-def debate_analysis(req: DebateRequest):
+@limiter.limit("10/minute")
+def debate_analysis(request: Request, req: DebateRequest):
     """Perform dialectical analysis on selected cards."""
     cfg = get_cfg()
     cards_json = json.dumps(req.cards, ensure_ascii=False, indent=2)
@@ -296,7 +305,8 @@ def debate_analysis(req: DebateRequest):
 
 
 @router.post("/search", response_model=SearchResponse)
-def semantic_search(req: SearchRequest):
+@limiter.limit("30/minute")
+def semantic_search(request: Request, req: SearchRequest):
     """Semantic search across cards."""
     cfg = get_cfg()
     cards_json = json.dumps(req.cards, ensure_ascii=False, indent=2)
@@ -331,7 +341,8 @@ def semantic_search(req: SearchRequest):
 
 
 @router.post("/chat", response_model=ChatResponse)
-def general_chat(req: ChatRequest):
+@limiter.limit("10/minute")
+def general_chat(request: Request, req: ChatRequest):
     """General-purpose AI chat with full canvas context."""
     cfg = get_cfg()
 
@@ -433,7 +444,8 @@ def _wait_for_tool_result(session_id: str, tool_use_id: str, timeout: float = 30
 
 
 @router.post("/chat/stream")
-def chat_stream(req: ChatRequest):
+@limiter.limit("10/minute")
+def chat_stream(request: Request, req: ChatRequest):
     """Streaming AI chat with function calling support."""
     cfg = get_cfg()
 
@@ -584,7 +596,7 @@ def chat_stream(req: ChatRequest):
 
         except Exception as e:
             logger.error(f"Streaming chat failed: {e}")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Chat service unavailable'})}\n\n"
         finally:
             # Cleanup tool result buffers for this session
             if session_id:

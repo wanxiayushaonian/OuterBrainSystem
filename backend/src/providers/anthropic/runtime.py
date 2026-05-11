@@ -209,7 +209,8 @@ class AnthropicRuntime(ChatRuntime):
 
         def _wrap(text: str) -> str:
             """Wrap user content to prevent prompt injection."""
-            return f"<content>{text}</content>"
+            safe = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            return f"<content>{safe}</content>"
 
         # Build cards description
         cards_desc = []
