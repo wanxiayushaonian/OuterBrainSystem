@@ -28,7 +28,7 @@ function buildTree(): TreeNode[] {
   for (const conn of state.connections) {
     const parent = nodeMap.get(conn.from);
     const child = nodeMap.get(conn.to);
-    if (parent && child) {
+    if (parent && child && !parent.children.some(c => c.id === child.id)) {
       parent.children.push(child);
     }
   }
@@ -61,9 +61,11 @@ function truncate(text: string, max: number): string {
   return text.length > max ? text.slice(0, max) + '…' : text;
 }
 
-function renderTreeNode(node: TreeNode, depth: number): string {
+function renderTreeNode(node: TreeNode, depth: number, visited = new Set<number>()): string {
+  if (visited.has(node.id)) return '';
+  visited.add(node.id);
   const connCount = state.connections.filter(c => c.from === node.id || c.to === node.id).length;
-  const childHtml = node.children.map(c => renderTreeNode(c, depth + 1)).join('');
+  const childHtml = node.children.map(c => renderTreeNode(c, depth + 1, visited)).join('');
   return `<div class="outline-item" data-id="${node.id}" style="padding-left:${12 + depth * 16}px">
     <span class="outline-bullet">${node.children.length > 0 ? '◆' : '◇'}</span>
     <span class="outline-text">${truncate(node.text, 60)}</span>
@@ -80,7 +82,7 @@ export function renderOutline(): void {
   if (countEl) countEl.textContent = String(canvasCards.length);
 
   if (canvasCards.length === 0) {
-    list.innerHTML = '<div class="outline-empty">画布上暂无卡片</div>';
+    list.innerHTML = `<div class="outline-empty">${t('outline-empty')}</div>`;
     return;
   }
 
