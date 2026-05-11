@@ -135,14 +135,14 @@ if STATIC_DIR.is_dir():
     async def serve_spa(full_path: str):
         if full_path.startswith("api/"):
             raise HTTPException(404)
-        # Serve login.html directly
+        # Serve login.html directly — must not fall through to SPA catch-all
         if full_path == "login":
             login_file = STATIC_DIR / "login.html"
             if login_file.is_file():
                 return FileResponse(login_file)
+            raise HTTPException(404, detail="login.html not found")
         file_path = STATIC_DIR / full_path
         if file_path.is_file():
-            from fastapi.responses import FileResponse
             return FileResponse(file_path)
         return FileResponse(STATIC_DIR / "index.html")
 
