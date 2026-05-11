@@ -94,7 +94,7 @@ function escapeAttr(s: string): string {
 function generateFallbackResponse(card: Card, connections: Connection[]): { text: string; action: { text: string } | null } {
   const hasSupports = connections.some(c => c.label.includes('支撑') || c.label.includes('Supports'));
   const hasQuestions = connections.some(c => c.label.includes('质疑') || c.label.includes('Questions'));
-  const hasLeads = connections.some(c => c.label.includes('导致') || c.label.includes('Leads'));
+  connections.some(c => c.label.includes('导致') || c.label.includes('Leads'));
 
   if (connections.length === 0) {
     return { text: `这张卡片是一个孤立的思维节点。它还没有与其他想法建立联系。<br/><br/><strong>建议：</strong>思考这个观点的前提是什么？它能支撑或质疑哪些其他想法？`, action: { text: '这个观点的前提是什么？' } };

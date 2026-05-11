@@ -2,7 +2,6 @@
 // State management
 // ═══════════════════════════════════════════════════════
 import type { AppState, Card, Connection, Space, CardGroup } from './types';
-import { t } from '../../i18n';
 import { fetchSpaces, loadSpaceState, saveSpaceState } from '../api/spaces';
 
 export const LABELS = ['支撑 Supports', '质疑 Questions', '相关 Related', '导致 Leads to', '反对 Opposes'];

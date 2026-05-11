@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════
 // Settings panel: language, label management, shortcuts, draggable
 // ═══════════════════════════════════════════════════════
-import { state, LABELS, LABEL_PRESETS, scheduleSave, pushUndo } from '../../core/types/state';
+import { state, LABELS, LABEL_PRESETS, scheduleSave } from '../../core/types/state';
 import { setLang, t, escapeHtml } from '../../i18n';
 import { showToast } from './toast';
 import { updateTimeline } from '../../version/manager';

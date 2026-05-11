@@ -2,7 +2,7 @@
 // Inbox panel rendering and drag-to-canvas
 // ═══════════════════════════════════════════════════════
 import { state } from '../../core/types/state';
-import { t } from '../../i18n';
+import '../../i18n';
 import { semanticSearch } from '../chat/api';
 
 // Semantic search state

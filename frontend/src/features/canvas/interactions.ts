@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════
 // Canvas interactions: drag, connect, select, pan, zoom, keyboard
 // ═══════════════════════════════════════════════════════
-import { state, LABELS, scheduleSave, pushUndo, undo, redo } from '../../core/types/state';
+import { state, scheduleSave, pushUndo, undo, redo } from '../../core/types/state';
 import { connId } from '../../core/types/types';
 import { t } from '../../i18n';
 import { renderCanvas, renderConnections, renderTempConnection, collapsedPillPositions } from './renderer';
-import { zoomCanvas, screenToCanvas, applyTransform, updateZoomDisplay } from './transform';
+import { zoomCanvas, screenToCanvas, applyTransform } from './transform';
 import { renderInbox } from '../inbox/inbox';
 import { showToast } from '../../shared/components/toast';
 import { openCardAiPopup } from '../chat/card-popup';
@@ -15,7 +15,6 @@ import { closeAiPanel } from '../chat/panel';
 import { saveManualVersion, quickSaveVersion, createBranchManual, closeRenameModal, closeBranchModal } from '../../version/manager';
 import { contextAction, showCanvasContextMenu, showInboxContextMenu, showConnContextMenu, showGroupContextMenu, closeAllContextMenus, closeGroupModal, openCardEditModal } from '../../shared/components/context-menu';
 import { closeSpaceModal } from '../../shared/components/space-selector';
-import type { Connection } from '../../core/types/types';
 
 let isPanning = false;
 let panStart = { x: 0, y: 0 };

@@ -121,7 +121,6 @@ const TOOL_PERMISSIONS: Record<string, ToolPermission> = {
 };
 
 // ── Approval dialog ──────────────────────────────────────
-let pendingApproval: { resolve: (v: boolean) => void } | null = null;
 let yoloMode = false; // YOLO mode: auto-approve all operations
 
 function showApprovalDialog(toolName: string, args: Record<string, unknown>): Promise<boolean> {
@@ -132,11 +131,7 @@ function showApprovalDialog(toolName: string, args: Record<string, unknown>): Pr
   }
 
   return new Promise(resolve => {
-    pendingApproval = { resolve };
-
     const desc = getToolDescription(toolName, args);
-    const modal = document.getElementById('deleteSessionModal');
-    // Reuse modal style but with custom content
     const overlay = document.createElement('div');
     overlay.className = 'approval-overlay';
     overlay.innerHTML = `
@@ -166,7 +161,6 @@ function showApprovalDialog(toolName: string, args: Record<string, unknown>): Pr
 
     function cleanup(result: boolean) {
       overlay.remove();
-      pendingApproval = null;
       resolve(result);
     }
   });
@@ -670,21 +664,6 @@ function finalizeThinkingBlock(container: HTMLElement | null, startTime: number,
   const body = currentThinkingEl.querySelector('.ai-thinking-body');
   if (body) body.textContent = content;
   currentThinkingEl = null;
-}
-
-// ── Tool call indicator ──────────────────────────────────
-function showToolCallIndicator(toolName: string, args: Record<string, unknown>): void {
-  const messages = document.getElementById('aiMessages');
-  if (!messages) return;
-
-  const desc = getToolDescription(toolName, args);
-  const el = document.createElement('div');
-  el.className = 'tool-call-item';
-  el.style.padding = '2px 0';
-  el.style.marginLeft = '8px';
-  el.textContent = desc;
-  messages.appendChild(el);
-  messages.scrollTop = messages.scrollHeight;
 }
 
 // ── Streaming with new runtime ──────────────────────────

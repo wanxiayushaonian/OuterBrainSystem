@@ -17,7 +17,7 @@ import './shared/components/flow-analysis-card.css';
 import './shared/components/choice-card.css';
 import './shared/components/vote-card.css';
 
-import { state, loadSpaces, switchSpace, loadSampleData, deserializeState, serializeState, scheduleSave, pushUndo } from './core/types/state';
+import { state, loadSpaces, loadSampleData, deserializeState, serializeState, scheduleSave, pushUndo } from './core/types/state';
 import { initLang, setLang, getCurrentLang } from './i18n';
 import { renderCanvas, renderConnections } from './features/canvas/renderer';
 import { renderInbox, setSemanticMode, isSemanticMode, triggerSemanticSearch } from './features/inbox/inbox';

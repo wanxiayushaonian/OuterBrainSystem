@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════
 // Context menus: canvas card, inbox card, connection
 // ═══════════════════════════════════════════════════════
-import { state, LABELS, getAllLabels, scheduleSave, pushUndo } from '../../core/types/state';
+import { state, getAllLabels, scheduleSave, pushUndo } from '../../core/types/state';
 import { t, escapeHtml } from '../../i18n';
 import { renderCanvas, renderConnections } from '../../features/canvas/renderer';
 import { renderInbox } from '../../features/inbox/inbox';

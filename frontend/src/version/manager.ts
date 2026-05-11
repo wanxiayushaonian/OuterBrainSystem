@@ -6,7 +6,7 @@ import { t } from '../i18n';
 import { renderCanvas, renderConnections } from '../features/canvas/renderer';
 import { renderInbox } from '../features/inbox/inbox';
 import { showToast } from '../shared/components/toast';
-import { autoExpand, initModalTextarea } from '../shared/utils/textarea';
+import { initModalTextarea } from '../shared/utils/textarea';
 import type { VersionSnapshot } from '../core/types/types';
 
 // ── Save version ──

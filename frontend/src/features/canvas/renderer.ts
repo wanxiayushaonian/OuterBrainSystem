@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════
 // Canvas rendering: cards and connections
 // ═══════════════════════════════════════════════════════
-import { state, LABELS, getAllLabels } from '../../core/types/state';
+import { state, LABELS } from '../../core/types/state';
 import { isGroupConnId } from '../../core/types/types';
 import { t, escapeHtml } from '../../i18n';
 import { showToast } from '../../shared/components/toast';
-import { computeHighlightMap, getDepthColor, getDepthGlow } from './highlight';
+import { computeHighlightMap } from './highlight';
 import type { Connection } from '../../core/types/types';
 import { renderCardContent, getCardTypeIcon } from '../../shared/components/card-renderer';
 import katex from 'katex';

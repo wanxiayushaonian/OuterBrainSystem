@@ -127,11 +127,6 @@ async function renderDropdown(): Promise<void> {
 }
 
 // ── Space creation modal ──
-let _spaceDropdownEl: HTMLElement | null = null;
-
-export function setSpaceDropdownRef(el: HTMLElement): void {
-  _spaceDropdownEl = el;
-}
 
 export function openSpaceModal(): void {
   const input = document.getElementById('spaceNameInput') as HTMLTextAreaElement;
