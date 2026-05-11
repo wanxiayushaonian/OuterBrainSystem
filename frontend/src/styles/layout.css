@@ -62,6 +62,12 @@
   color: white;
 }
 .topbar-btn.primary:hover { background: var(--accent-dim); }
+.topbar-logout {
+  padding: 6px 8px;
+  display: flex; align-items: center;
+  color: var(--muted);
+}
+.topbar-logout:hover { color: var(--accent); border-color: var(--border); }
 
 /* ── Space Selector ── */
 .space-selector {
