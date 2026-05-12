@@ -188,6 +188,90 @@ npm run dev                                    # 启动开发服务器
 npm run build                                  # 构建生产版本
 ```
 
+## 生产部署
+
+### 前置条件
+
+- **Docker** >= 24
+- **Docker Compose** >= 2.20
+
+### 1. 配置环境变量
+
+在项目根目录创建 `.env` 文件：
+
+```env
+# 必填 — 访问密码（登录页面使用）
+NEXUS_API_TOKEN=your-secret-token
+
+# 可选 — Anthropic API 配置
+ANTHROPIC_AUTH_TOKEN=your-api-key
+ANTHROPIC_BASE_URL=https://your-proxy.com/anthropic
+ANTHROPIC_MODEL=claude-sonnet-4-20250514
+
+# 可选 — CORS 允许的域名（逗号分隔，留空允许所有）
+NEXUS_CORS_ORIGINS=https://your-domain.com
+
+# 可选 — 端口映射（默认 8000）
+NEXUS_PORT=8000
+```
+
+### 2. 构建并启动
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+启动后访问 **http://your-server:8000**，输入 `NEXUS_API_TOKEN` 中设置的密码登录。
+
+### 3. 常用命令
+
+```bash
+docker compose up -d          # 后台启动
+docker compose down            # 停止
+docker compose logs -f         # 查看日志
+docker compose restart         # 重启
+```
+
+### 4. 数据持久化
+
+SQLite 数据库存储在 Docker volume `nexus-data` 中，映射到容器内 `/data/nexus.db`。`docker compose down` 不会丢失数据，`docker compose down -v` 会删除数据。
+
+### 5. 反向代理（推荐）
+
+建议使用 Nginx/Caddy 做反向代理，配置 HTTPS：
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    ssl_certificate     /etc/ssl/cert.pem;
+    ssl_certificate_key /etc/ssl/key.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SSE 支持（AI 聊天流式响应）
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 300s;
+    }
+}
+```
+
+### 6. 安全说明
+
+- **认证**: 未设置 `NEXUS_API_TOKEN` 时不启用认证（仅限本地开发）
+- **速率限制**: LLM 端点 10 req/min，其他 API 端点 30 req/min
+- **CORS**: 生产环境通过 `NEXUS_CORS_ORIGINS` 配置允许的域名
+- **错误信息**: 生产环境不暴露内部错误细节
+- **Prompt 注入**: 用户内容经过 HTML 转义后传入 LLM
+
 ## License
 
 Private project.
