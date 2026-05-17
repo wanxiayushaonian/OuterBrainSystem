@@ -16,11 +16,24 @@ import './shared/components/socratic-card.css';
 import './shared/components/flow-analysis-card.css';
 import './shared/components/choice-card.css';
 import './shared/components/vote-card.css';
+import './shared/components/debate-card.css';
+import './shared/components/research-path-card.css';
+import './shared/components/progress-card.css';
+import './shared/components/checklist-card.css';
+import './shared/components/quote-card.css';
+import './shared/components/note-card.css';
+import './shared/components/conclusion-card.css';
+import './shared/components/image-card.css';
+import './features/card-gallery/card-gallery.css';
+import './features/notifications/notifications.css';
+import './shared/components/wikilink-popup.css';
+import './features/graph/graph-view.css';
+import './features/templates/template-picker.css';
 
-import { state, loadSpaces, loadSampleData, deserializeState, serializeState, scheduleSave, pushUndo } from './core/types/state';
+import { state, loadSpaces, loadSampleData, deserializeState, serializeState, scheduleSave, pushUndo, undo, redo } from './core/types/state';
 import { initLang, setLang, getCurrentLang } from './i18n';
 import { renderCanvas, renderConnections } from './features/canvas/renderer';
-import { renderInbox, setSemanticMode, isSemanticMode, triggerSemanticSearch } from './features/inbox/inbox';
+import { renderInbox } from './features/inbox/inbox';
 import { renderOutline, initOutline } from './features/inbox/outline';
 import { applyTransform, zoomCanvas, fitCanvas } from './features/canvas/transform';
 import { initInteractions } from './features/canvas/interactions';
@@ -32,6 +45,10 @@ import { initTweaks } from './shared/components/tweaks';
 import { initContextMenu } from './shared/components/context-menu';
 import { initSpaceSelector } from './shared/components/space-selector';
 import { initSessionTabs } from './shared/components/session-tabs';
+import { initNotifications } from './features/notifications/notifications';
+import { initGraphView, openGraph } from './features/graph/graph-view';
+import { openTemplatePicker } from './features/templates/template-picker';
+import { enterGallery, exitGallery, isGalleryMode } from './features/card-gallery/card-gallery';
 import { RuntimeFactory, AnthropicRuntime } from './core/runtime';
 import { t } from './i18n';
 import { discoverRelationships, type DiscoverSuggestion } from './features/chat/api';
@@ -121,6 +138,8 @@ async function init(): Promise<void> {
     console.error('Session tabs initialization failed:', err);
   });
   initOutline();
+  initNotifications();
+  initGraphView();
 
   // Sidebar view toggle
   let currentView: 'inbox' | 'outline' = 'inbox';
@@ -145,24 +164,7 @@ async function init(): Promise<void> {
   // Search input
   const searchInput = document.getElementById('searchInput') as HTMLInputElement | null;
   searchInput?.addEventListener('input', () => {
-    if (isSemanticMode()) {
-      triggerSemanticSearch(searchInput?.value || '');
-    } else {
-      renderInbox();
-    }
-  });
-
-  // Semantic search toggle
-  const searchModeBtn = document.getElementById('searchModeBtn');
-  searchModeBtn?.addEventListener('click', () => {
-    const on = !isSemanticMode();
-    setSemanticMode(on);
-    searchModeBtn.classList.toggle('active', on);
-    if (on && searchInput?.value) {
-      triggerSemanticSearch(searchInput.value);
-    } else {
-      renderInbox();
-    }
+    renderInbox();
   });
 
   // Zoom controls
@@ -170,11 +172,125 @@ async function init(): Promise<void> {
   document.getElementById('zoomInBtn')?.addEventListener('click', () => zoomCanvas(0.1));
   document.getElementById('zoomFitBtn')?.addEventListener('click', () => fitCanvas());
 
+  // Topbar dropdown menus
+  function closeAllDropdowns(): void {
+    document.querySelectorAll('.topbar-dropdown.open').forEach(el => el.classList.remove('open'));
+  }
+
+  document.querySelectorAll('.topbar-dropdown-trigger').forEach(trigger => {
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const parent = (trigger as HTMLElement).closest('.topbar-dropdown')!;
+      const wasOpen = parent.classList.contains('open');
+      closeAllDropdowns();
+      if (!wasOpen) parent.classList.add('open');
+    });
+  });
+
+  document.addEventListener('click', closeAllDropdowns);
+
+  // Edit menu actions
+  document.getElementById('editDropdown')?.addEventListener('click', (e) => {
+    const item = (e.target as HTMLElement).closest('[data-action]') as HTMLElement;
+    if (!item) return;
+    const action = item.dataset.action;
+    closeAllDropdowns();
+    if (isGalleryMode()) return;
+    if (action === 'undo') { undo(); renderAll(); }
+    else if (action === 'redo') { redo(); renderAll(); }
+    else if (action === 'select-all') {
+      const canvasCards = state.cards.filter(c => c.inCanvas);
+      state.selectedCards.clear();
+      canvasCards.forEach(c => state.selectedCards.add(c.id));
+      renderCanvas();
+      renderConnections();
+    }
+    else if (action === 'delete-selected' && state.selectedCards.size > 0) {
+      pushUndo();
+      state.selectedCards.forEach(id => {
+        state.cards = state.cards.filter(c => c.id !== id);
+        state.connections = state.connections.filter(c => c.from !== id && c.to !== id);
+      });
+      state.selectedCards.clear();
+      renderCanvas();
+      renderConnections();
+      renderInbox();
+      scheduleSave();
+      showToast(t('toast-deleted'));
+    }
+  });
+
+  // Tools menu actions
+  document.getElementById('toolsDropdown')?.addEventListener('click', (e) => {
+    const item = (e.target as HTMLElement).closest('[data-action]') as HTMLElement;
+    if (!item) return;
+    const action = item.dataset.action;
+    closeAllDropdowns();
+    if (action === 'card-gallery') {
+      if (isGalleryMode()) exitGallery();
+      else enterGallery();
+    }
+    // Block other tools actions during gallery mode
+    else if (isGalleryMode()) return;
+    else if (action === 'template') openTemplatePicker();
+    else if (action === 'graph') openGraph();
+    else if (action === 'export') {
+      const data = serializeState();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nexus-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(t('toast-exported') || '已导出');
+    }
+    else if (action === 'import') {
+      document.getElementById('importFile')?.click();
+    }
+  });
+
+  // Import file handler
+  const importFile = document.getElementById('importFile') as HTMLInputElement;
+  importFile?.addEventListener('change', () => {
+    const file = importFile.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result as string);
+        pushUndo();
+        deserializeState(data);
+        renderAll();
+        scheduleSave();
+        showToast(t('toast-imported') || '已导入');
+      } catch {
+        showToast(t('toast-import-error') || '导入失败：文件格式错误');
+      }
+    };
+    reader.readAsText(file);
+    importFile.value = '';
+  });
+
   // Logout button
   document.getElementById('logoutBtn')?.addEventListener('click', () => {
     localStorage.removeItem('nexus-token');
     window.location.href = '/login';
   });
+
+  // Sidebar toggle
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const appShell = document.querySelector('.app');
+  if (sidebarToggle && appShell) {
+    // Restore saved state
+    if (localStorage.getItem('sidebar-hidden') === 'true') {
+      appShell.classList.add('sidebar-hidden');
+    }
+    sidebarToggle.addEventListener('click', () => {
+      appShell.classList.toggle('sidebar-hidden');
+      localStorage.setItem('sidebar-hidden', appShell.classList.contains('sidebar-hidden') ? 'true' : 'false');
+    });
+  }
 
   // Topbar capture button
   document.getElementById('topbarCaptureBtn')?.addEventListener('click', openCapture);
@@ -200,6 +316,7 @@ async function init(): Promise<void> {
   discoverClose2?.addEventListener('click', closeDiscover);
 
   discoverBtn?.addEventListener('click', async () => {
+    if (isGalleryMode()) return;
     const canvasCards = state.cards.filter(c => c.inCanvas);
     if (canvasCards.length < 2) {
       showToast(t('toast-min-cards'));
@@ -262,6 +379,79 @@ async function init(): Promise<void> {
     }
     showToast(t('discover-accepted', { n: count }) || `已接受 ${count} 条关系`);
     closeDiscover();
+  });
+
+  // Knowledge graph button (sidebar)
+  document.getElementById('graphBtn')?.addEventListener('click', openGraph);
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    // Skip if user is typing in an input/textarea
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return;
+
+    const ctrl = e.ctrlKey || e.metaKey;
+
+    // Escape: Exit gallery or deselect all
+    if (e.key === 'Escape') {
+      if (isGalleryMode()) { exitGallery(); return; }
+      state.selectedCards.clear();
+      renderCanvas();
+      renderConnections();
+      return;
+    }
+
+    // In gallery mode, block all other shortcuts
+    if (isGalleryMode()) return;
+
+    // Ctrl+Z: Undo
+    if (ctrl && !e.shiftKey && e.key === 'z') {
+      e.preventDefault();
+      if (undo()) renderAll();
+      return;
+    }
+    // Ctrl+Shift+Z or Ctrl+Y: Redo
+    if (ctrl && e.shiftKey && e.key === 'z' || ctrl && e.key === 'y') {
+      e.preventDefault();
+      if (redo()) renderAll();
+      return;
+    }
+    // Ctrl+S: Force save
+    if (ctrl && e.key === 's') {
+      e.preventDefault();
+      scheduleSave();
+      showToast(t('toast-saved') || '已保存');
+      return;
+    }
+    // Ctrl+A: Select all canvas cards
+    if (ctrl && e.key === 'a') {
+      e.preventDefault();
+      const canvasCards = state.cards.filter(c => c.inCanvas);
+      if (canvasCards.length > 0) {
+        state.selectedCards.clear();
+        canvasCards.forEach(c => state.selectedCards.add(c.id));
+        renderCanvas();
+        renderConnections();
+      }
+      return;
+    }
+    // Delete/Backspace: Delete selected cards
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (state.selectedCards.size === 0) return;
+      e.preventDefault();
+      pushUndo();
+      state.selectedCards.forEach(id => {
+        state.cards = state.cards.filter(c => c.id !== id);
+        state.connections = state.connections.filter(c => c.from !== id && c.to !== id);
+      });
+      state.selectedCards.clear();
+      renderCanvas();
+      renderConnections();
+      renderInbox();
+      scheduleSave();
+      showToast(t('toast-deleted'));
+      return;
+    }
   });
 }
 

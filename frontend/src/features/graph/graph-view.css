@@ -1,0 +1,199 @@
+/* ═══════════════════════════════════════════════════════
+   Knowledge Graph Visualization
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Overlay Container ── */
+.graph-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+}
+.graph-overlay.open {
+  display: flex;
+}
+
+/* ── Toolbar ── */
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.graph-toolbar button {
+  padding: 6px 12px;
+  font: 600 11px/1 var(--font-body);
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.graph-toolbar button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.graph-toolbar button.active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.graph-toolbar-title {
+  font: 700 13px/1 var(--font-body);
+  color: var(--fg);
+  margin-right: auto;
+}
+.graph-toolbar-filters {
+  display: flex;
+  gap: 4px;
+}
+
+/* ── SVG Canvas ── */
+.graph-svg {
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+  cursor: grab;
+}
+.graph-svg:active {
+  cursor: grabbing;
+}
+
+/* ── Nodes ── */
+.graph-node {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.graph-node:hover {
+  opacity: 0.8;
+}
+.graph-node-circle {
+  stroke-width: 2;
+  stroke: var(--surface);
+  filter: drop-shadow(0 2px 4px oklch(0% 0 0 / 0.15));
+}
+.graph-node-label {
+  font: 600 11px/1 var(--font-body);
+  fill: var(--fg);
+  text-anchor: middle;
+  pointer-events: none;
+  text-shadow: 0 1px 2px var(--bg);
+}
+.graph-node-type {
+  font: 9px/1 var(--font-mono);
+  fill: var(--muted);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* ── Edges ── */
+.graph-edge {
+  fill: none;
+  stroke-width: 1.5;
+  opacity: 0.5;
+}
+.graph-edge-label {
+  font: 600 10px/1 var(--font-body);
+  fill: var(--muted);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* ── Detail Panel ── */
+.graph-detail {
+  position: absolute;
+  right: 0;
+  top: 40px;
+  bottom: 0;
+  width: 280px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+}
+.graph-detail.open {
+  transform: translateX(0);
+}
+.graph-detail-title {
+  font: 700 16px/1.3 var(--font-body);
+  color: var(--fg);
+  margin-bottom: 8px;
+}
+.graph-detail-type {
+  font: 10px/1 var(--font-mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.graph-detail-desc {
+  font: 13px/1.5 var(--font-body);
+  color: var(--fg);
+  margin-bottom: 16px;
+}
+.graph-detail-section {
+  margin-bottom: 16px;
+}
+.graph-detail-section-title {
+  font: 600 11px/1 var(--font-body);
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.graph-detail-card {
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+  font: 12px/1.4 var(--font-body);
+  color: var(--fg);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.graph-detail-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.graph-detail-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.graph-detail-close:hover {
+  color: var(--fg);
+}
+
+/* ── Entity Type Colors ── */
+.entity-color-concept { fill: oklch(55% 0.16 255); stroke: oklch(45% 0.16 255); }
+.entity-color-person { fill: oklch(55% 0.16 145); stroke: oklch(45% 0.16 145); }
+.entity-color-theory { fill: oklch(55% 0.16 300); stroke: oklch(45% 0.16 300); }
+.entity-color-tool { fill: oklch(55% 0.16 35); stroke: oklch(45% 0.16 35); }
+.entity-color-method { fill: oklch(55% 0.16 170); stroke: oklch(45% 0.16 170); }
+.entity-color-event { fill: oklch(55% 0.16 25); stroke: oklch(45% 0.16 25); }
+.entity-color-default { fill: oklch(55% 0.01 250); stroke: oklch(45% 0.01 250); }
+
+/* Relation type colors */
+.relation-color-is_a { stroke: oklch(55% 0.16 255); }
+.relation-color-part_of { stroke: oklch(55% 0.16 300); }
+.relation-color-causes { stroke: oklch(55% 0.16 35); }
+.relation-color-uses { stroke: oklch(55% 0.16 145); }
+.relation-color-related_to { stroke: oklch(54% 0.012 250); }
+.relation-color-contradicts { stroke: oklch(55% 0.16 25); }

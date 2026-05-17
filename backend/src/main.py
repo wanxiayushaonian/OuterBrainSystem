@@ -104,6 +104,10 @@ app.include_router(llm_router, prefix="/api/llm", tags=["llm"])
 app.include_router(spaces_router, prefix="/api/spaces", tags=["spaces"])
 app.include_router(chat_router)
 app.include_router(sessions_router)
+from src.api.notifications import router as notifications_router
+app.include_router(notifications_router)
+from src.api.graph import router as graph_router
+app.include_router(graph_router, prefix="/api/graph", tags=["graph"])
 
 
 @app.get("/api/health")

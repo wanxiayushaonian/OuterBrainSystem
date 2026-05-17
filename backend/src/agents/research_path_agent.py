@@ -274,16 +274,33 @@ class ResearchPathAgent(BaseAgent):
 
         text = f"🗺️ 研究路径: {topic[:40]}{'...' if len(topic) > 40 else ''}"
 
+        research_steps = result.get("research_path", [])
+
         card = {
-            "type": "note",
+            "type": "research_path",
             "text": text,
             "status": "pending",
             "metadata": {
+                "research_path": {
+                    "title": topic,
+                    "steps": [
+                        {
+                            "title": step.get("action", ""),
+                            "description": f"优先级: {step.get('priority', 'unknown')}, 工作量: {step.get('estimated_effort', 'unknown')}",
+                            "status": "pending"
+                        }
+                        for step in research_steps
+                    ],
+                    "current_step": 0,
+                    "current_state": result.get("current_state", {}),
+                    "blind_spots": result.get("blind_spots", []),
+                    "references": result.get("references", [])
+                },
                 "research_path_type": "research_brief",
                 "topic": topic,
                 "current_state": result.get("current_state", {}),
                 "blind_spots": result.get("blind_spots", []),
-                "research_path": result.get("research_path", []),
+                "research_path": research_steps,
                 "references": result.get("references", []),
                 "source_card_id": card_id
             }

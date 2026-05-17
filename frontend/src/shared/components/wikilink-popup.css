@@ -1,0 +1,59 @@
+/* ═══════════════════════════════════════════════════════
+   Wikilink [[ Search Popup
+   ═══════════════════════════════════════════════════════ */
+
+.wikilink-popup {
+  position: fixed;
+  z-index: 10000;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.wikilink-popup-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--fg);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.wikilink-popup-item:hover,
+.wikilink-popup-item.selected {
+  background: var(--accent);
+  color: white;
+}
+
+.wikilink-popup-item:hover .wikilink-popup-id,
+.wikilink-popup-item.selected .wikilink-popup-id {
+  color: oklch(90% 0.02 250);
+}
+
+.wikilink-popup-id {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.wikilink-popup-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+}
+
+.wikilink-popup-empty {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}

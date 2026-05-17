@@ -9,6 +9,10 @@
   grid-template-rows: 48px auto 1fr;
   height: 100vh;
   overflow: hidden;
+  transition: grid-template-columns 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.app.sidebar-hidden {
+  grid-template-columns: 0px 1fr;
 }
 
 /* ── Top Bar ── */
@@ -68,6 +72,74 @@
   color: var(--muted);
 }
 .topbar-logout:hover { color: var(--accent); border-color: var(--border); }
+
+/* ── Topbar Dropdown ── */
+.topbar-dropdown { position: relative; }
+.topbar-dropdown-trigger {
+  display: flex; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer;
+  font: 12px/1 var(--font-body); color: var(--muted);
+  padding: 6px 8px; border-radius: var(--radius-sm);
+  transition: background var(--transition), color var(--transition);
+}
+.topbar-dropdown-trigger:hover { background: var(--border); color: var(--fg); }
+.topbar-dropdown-trigger svg { stroke: currentColor; }
+
+.topbar-dropdown-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px oklch(0% 0 0 / 0.12);
+  padding: 4px;
+  z-index: 200;
+}
+.topbar-dropdown.open .topbar-dropdown-panel { display: block; }
+
+.topbar-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.topbar-dropdown-item:hover { background: var(--accent-light); }
+.topbar-dropdown-item svg {
+  width: 14px; height: 14px; stroke: var(--muted); flex-shrink: 0;
+}
+.topbar-dropdown-item span {
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  flex: 1;
+}
+.topbar-dropdown-item kbd {
+  font: 10px/1 var(--font-mono);
+  color: var(--muted);
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+}
+.topbar-dropdown-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 6px;
+}
+
+/* ── Sidebar Toggle ── */
+.sidebar-toggle {
+  padding: 6px 8px;
+  display: flex; align-items: center;
+  color: var(--muted);
+}
+.sidebar-toggle:hover { color: var(--accent); border-color: var(--border); }
+.app.sidebar-hidden .sidebar-toggle { color: var(--accent); border-color: var(--accent); }
 
 /* ── Space Selector ── */
 .space-selector {

@@ -55,6 +55,82 @@
 }
 .capture-body textarea:focus { border-color: var(--accent); }
 .capture-body textarea::placeholder { color: var(--muted); }
+
+.capture-type-selector {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.capture-type-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: 11px/1 var(--font-body);
+  color: var(--muted);
+  transition: all var(--transition);
+}
+.capture-type-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.capture-type-btn.active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.capture-type-btn svg {
+  stroke: currentColor;
+}
+
+.capture-metadata {
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.capture-metadata label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: 11px/1 var(--font-body);
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.capture-metadata label:last-child {
+  margin-bottom: 0;
+}
+
+.capture-metadata input,
+.capture-metadata textarea {
+  font: 12px/1.4 var(--font-body);
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.capture-metadata input:focus,
+.capture-metadata textarea:focus {
+  border-color: var(--accent);
+}
+
+.capture-metadata .checklist-items-input {
+  min-height: 60px;
+  resize: vertical;
+}
+
 .capture-footer {
   padding: 0 18px 14px;
   display: flex; align-items: center; justify-content: space-between;
@@ -453,6 +529,9 @@
   overflow: hidden;
   align-self: flex-start;
   max-width: 82%;
+  border-left: 3px solid var(--accent);
+  background: oklch(97% 0.01 255 / 0.5);
+  transition: background var(--transition);
 }
 
 .ai-thinking-header {
@@ -476,7 +555,7 @@
 .ai-thinking-header svg {
   width: 10px;
   height: 10px;
-  transition: transform var(--transition);
+  transition: transform 200ms ease;
 }
 
 .ai-thinking.open .ai-thinking-header svg {
@@ -508,10 +587,16 @@
   max-height: 160px;
   overflow-y: auto;
   background: oklch(96% 0.005 250);
+  animation: thinking-expand 200ms ease-out;
 }
 
 .ai-thinking.open .ai-thinking-body {
   display: block;
+}
+
+@keyframes thinking-expand {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 160px; }
 }
 
 @keyframes spin {

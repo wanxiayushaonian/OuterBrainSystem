@@ -1,0 +1,67 @@
+/* ═══════════════════════════════════════════════════════
+   Card Gallery — Canvas-based type showcase banner
+   ═══════════════════════════════════════════════════════ */
+
+.gallery-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px oklch(0% 0 0 / 0.06);
+  animation: banner-in 200ms ease-out;
+}
+
+@keyframes banner-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gallery-banner-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: 12px/1 var(--font-body);
+  color: var(--fg);
+  transition: all var(--transition);
+}
+.gallery-banner-back:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.gallery-banner-back svg {
+  stroke: currentColor;
+}
+
+.gallery-banner-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 14px/1 var(--font-display);
+  color: var(--fg);
+}
+.gallery-banner-title svg {
+  stroke: var(--accent);
+}
+
+.gallery-banner-hint {
+  font: 11px/1 var(--font-body);
+  color: var(--muted);
+  margin-left: auto;
+}
+
+/* ── Gallery cards: draggable but no edit/connect ── */
+.canvas-card.gallery-readonly:hover {
+  box-shadow: var(--shadow-md);
+}

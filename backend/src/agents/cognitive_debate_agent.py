@@ -217,16 +217,42 @@ class CognitiveDebateAgent(BaseAgent):
         claim = result.get("claim", user_input[:100])
         text = f"⚖️ 辩论: {claim[:40]}{'...' if len(claim) > 40 else ''}"
 
+        pro_args = result.get("pro_arguments", [])
+        con_args = result.get("con_arguments", [])
+        assessment = result.get("assessment", {})
+
         card = {
-            "type": "note",
+            "type": "debate",
             "text": text,
             "status": "pending",
             "metadata": {
+                "debate": {
+                    "topic": claim,
+                    "positions": [
+                        {
+                            "title": "支持论点",
+                            "supporting_evidence": "\n".join(
+                                f"{arg['point']}: {arg.get('evidence', '')}" for arg in pro_args
+                            ),
+                            "challenges": ""
+                        },
+                        {
+                            "title": "反驳论点",
+                            "supporting_evidence": "",
+                            "challenges": "\n".join(
+                                f"{arg['point']}: {arg.get('evidence', '')}" for arg in con_args
+                            )
+                        }
+                    ],
+                    "synthesis": assessment.get("key_disagreement", "") + "\n" + "\n".join(
+                        assessment.get("suggested_next_steps", [])
+                    )
+                },
                 "debate_type": "cognitive_debate",
                 "claim": claim,
-                "pro_arguments": result.get("pro_arguments", []),
-                "con_arguments": result.get("con_arguments", []),
-                "assessment": result.get("assessment", {}),
+                "pro_arguments": pro_args,
+                "con_arguments": con_args,
+                "assessment": assessment,
                 "source_card_ids": card_ids or []
             }
         }

@@ -30,7 +30,7 @@ export function renderVoteCard(card: Card, container: HTMLElement): void {
   }
 
   const metadata = card.metadata as VoteMetadata;
-  const totalVotes = metadata.options.reduce((sum, opt) => sum + opt.votes, 0);
+  const totalVotes = (metadata.options || []).reduce((sum, opt) => sum + opt.votes, 0);
 
   container.innerHTML = `
     <div class="vote-card">
@@ -46,9 +46,9 @@ export function renderVoteCard(card: Card, container: HTMLElement): void {
       ` : ''}
 
       <div class="vote-options">
-        ${metadata.options.map(option => {
+        ${(metadata.options || []).map(option => {
           const percentage = totalVotes > 0 ? (option.votes / totalVotes * 100).toFixed(1) : '0.0';
-          const isVoted = metadata.user_votes.includes(option.id);
+          const isVoted = (metadata.user_votes || []).includes(option.id);
 
           return `
             <div class="vote-option ${isVoted ? 'voted' : ''}" data-option-id="${escapeHtml(option.id)}">
@@ -92,8 +92,8 @@ export function renderVoteCard(card: Card, container: HTMLElement): void {
     </div>
   `;
 
-  // Attach event listeners for voting
-  attachVoteListeners(card.id);
+  // Attach event listeners for voting (skip in gallery mode — read-only preview)
+  if (!state.galleryMode) attachVoteListeners(card.id);
 }
 
 /**

@@ -99,16 +99,6 @@ export async function debateAnalysis(
   return post('/debate', { cards: cardData, stance });
 }
 
-export interface SearchResult {
-  id: number;
-  score: number;
-  reason: string;
-}
-
-export interface SearchResponse {
-  results: SearchResult[];
-}
-
 export interface ToolCall {
   name: string;
   input: Record<string, unknown>;
@@ -131,11 +121,3 @@ export async function generalChat(
   return post('/chat', { messages, canvas_context: canvasContext });
 }
 
-export async function semanticSearch(
-  query: string,
-  cards: { id: number; text: string }[],
-  maxResults = 10,
-): Promise<SearchResponse> {
-  const cardData = cards.map(c => ({ id: c.id, text: c.text }));
-  return post('/search', { query, cards: cardData, max_results: maxResults });
-}

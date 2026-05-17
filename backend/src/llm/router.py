@@ -21,8 +21,6 @@ from src.llm.prompts import (
     INQUIRY_USER,
     KEYWORD_EXTRACT_SYSTEM,
     KEYWORD_EXTRACT_USER,
-    SEARCH_SYSTEM,
-    SEARCH_USER,
     TITLE_COMPRESS_SYSTEM,
     TITLE_COMPRESS_USER,
 )
@@ -41,8 +39,6 @@ from src.llm.schemas import (
     InquiryResponse,
     KeywordsRequest,
     KeywordsResponse,
-    SearchRequest,
-    SearchResponse,
     ToolResultRequest,
 )
 
@@ -302,42 +298,6 @@ def debate_analysis(request: Request, req: DebateRequest):
         key_points=result.get("key_points", []),
         synthesis=result.get("synthesis", ""),
     )
-
-
-@router.post("/search", response_model=SearchResponse)
-@limiter.limit("30/minute")
-def semantic_search(request: Request, req: SearchRequest):
-    """Semantic search across cards."""
-    cfg = get_cfg()
-    cards_json = json.dumps(req.cards, ensure_ascii=False, indent=2)
-    user = SEARCH_USER.format(query=req.query, cards_json=cards_json, max_results=req.max_results)
-
-    fallback: dict = {"results": []}
-
-    try:
-        result = chat_json(
-            system=SEARCH_SYSTEM,
-            user=user,
-            model=cfg.llm.keywords.model,
-            max_tokens=cfg.llm.keywords.max_tokens,
-            temperature=cfg.llm.keywords.temperature,
-        )
-        result = _ensure_dict(result, fallback)
-    except Exception as e:
-        logger.warning(f"Semantic search failed, using fallback: {e}")
-        result = fallback
-
-    results = result.get("results", [])
-    valid = []
-    for r in results:
-        if isinstance(r, dict) and "id" in r:
-            valid.append({
-                "id": r["id"],
-                "score": float(r.get("score", 0.5)),
-                "reason": r.get("reason", ""),
-            })
-
-    return SearchResponse(results=valid[:req.max_results])
 
 
 @router.post("/chat", response_model=ChatResponse)

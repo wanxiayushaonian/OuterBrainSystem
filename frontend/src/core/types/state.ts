@@ -74,6 +74,8 @@ export const state: AppState = {
   didDrag: false,
   highlightRootId: null,
   highlightDepth: 1,
+  searchResultIds: null,
+  galleryMode: false,
 };
 
 // ── Query helpers ──
@@ -226,6 +228,14 @@ export function pushUndo(): void {
   redoStack.length = 0;
 }
 
+export function canUndo(): boolean {
+  return undoStack.length > 0;
+}
+
+export function canRedo(): boolean {
+  return redoStack.length > 0;
+}
+
 export function undo(): boolean {
   if (undoStack.length === 0) return false;
   redoStack.push(takeSnapshot());
@@ -248,13 +258,21 @@ export function redo(): boolean {
 export function scheduleSave(): void {
   if (_saveTimer) clearTimeout(_saveTimer);
   _saveTimer = setTimeout(async () => {
-    if (!state.currentSpaceId) return;
+    if (!state.currentSpaceId || state.galleryMode) return;
     try {
       await saveSpaceState(state.currentSpaceId, serializeState());
     } catch (e) {
       console.warn('Auto-save failed:', e);
     }
   }, 1500);
+}
+
+/** Cancel any pending auto-save (e.g. before entering gallery mode). */
+export function cancelPendingSave(): void {
+  if (_saveTimer) {
+    clearTimeout(_saveTimer);
+    _saveTimer = null;
+  }
 }
 
 /** Load spaces list from backend. */
@@ -271,8 +289,8 @@ export async function loadSpaces(): Promise<Space[]> {
 
 /** Switch to a space: save current, load target. */
 export async function switchSpace(spaceId: number, renderAll: () => void): Promise<void> {
-  // Save current space first
-  if (state.currentSpaceId) {
+  // Save current space first (skip if in gallery mode to avoid saving example cards)
+  if (state.currentSpaceId && !state.galleryMode) {
     try {
       await saveSpaceState(state.currentSpaceId, serializeState());
     } catch (e) {

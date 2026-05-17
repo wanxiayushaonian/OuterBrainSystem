@@ -4,6 +4,7 @@
 import { state, scheduleSave, pushUndo, getAllLabels } from '../../core/types/state';
 import { t } from '../../i18n';
 import { renderCanvas, renderConnections } from '../canvas/renderer';
+import { applyTransform } from '../canvas/transform';
 import { autoLayout } from '../canvas/layout';
 import { showToast } from '../../shared/components/toast';
 import { RuntimeFactory } from '../../core/runtime';
@@ -89,6 +90,13 @@ function formatReply(text: string | null | undefined): string {
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
   html = html.replace(/^---$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:8px 0">');
   html = html.replace(/^[*-] (.+)$/gm, '• $1');
+  // Card references: #53 → clickable link (but not markdown headers # / ## / ###)
+  html = html.replace(/(?<!\w)#(\d+)/g, (_match, id) => {
+    const card = state.cards.find(c => c.id === parseInt(id));
+    const label = card ? escapeHtml(card.text.slice(0, 20)) : `卡片 #${id}`;
+    return `<span class="card-ref" data-ref-id="${id}" title="${label}">#${id}</span>`;
+  });
+
   html = html.replace(/\n/g, '<br>');
 
   // Restore inline code blocks
@@ -445,6 +453,11 @@ async function renderSessionList(): Promise<void> {
       const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
       const messageCount = s.messages?.length || 0;
 
+      // Get last message preview
+      const lastMsg = s.messages?.length ? s.messages[s.messages.length - 1] : null;
+      const preview = lastMsg?.content ? lastMsg.content.slice(0, 60) + (lastMsg.content.length > 60 ? '…' : '') : '';
+      const previewRole = lastMsg?.role === 'user' ? '👤' : '✦';
+
       return `
         <div class="session-item ${isActive ? 'active' : ''}" data-session-id="${s.id}">
           <div class="session-item-header">
@@ -453,9 +466,10 @@ async function renderSessionList(): Promise<void> {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
             </button>
           </div>
+          ${preview ? `<div class="session-item-preview"><span class="preview-role">${previewRole}</span>${escapeHtml(preview)}</div>` : ''}
           <div class="session-item-meta">
             <span>${dateStr} ${timeStr}</span>
-            <span>•</span>
+            <span>·</span>
             <span>${messageCount} 条消息</span>
           </div>
         </div>
@@ -537,7 +551,59 @@ async function confirmDeleteSession(): Promise<void> {
   }
 }
 
+/**
+ * Scroll to and flash-highlight a card on the canvas
+ */
+function focusCard(cardId: number): void {
+  const card = state.cards.find(c => c.id === cardId);
+  if (!card) {
+    showToast(`卡片 #${cardId} 不存在`);
+    return;
+  }
+  // Pan viewport to center the card
+  const area = document.getElementById('canvasArea');
+  if (area) {
+    const rect = area.getBoundingClientRect();
+    state.pan.x = rect.width / 2 - (card.x + 120) * state.zoom;
+    state.pan.y = rect.height / 2 - (card.y + 40) * state.zoom;
+    applyTransform();
+  }
+  // Select the card
+  state.selectedCards.clear();
+  state.selectedCards.add(cardId);
+  renderCanvas();
+  renderConnections();
+  // Flash highlight
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`.canvas-card[data-id="${cardId}"]`) as HTMLElement;
+    if (el) {
+      el.classList.add('card-flash');
+      el.addEventListener('animationend', () => el.classList.remove('card-flash'), { once: true });
+    }
+  });
+}
+
+/**
+ * Attach delegated click handler for card references (#53) on the messages container.
+ * Call once — uses event delegation so it works for dynamically added content.
+ */
+function attachCardRefHandlers(container: HTMLElement): void {
+  // Only attach once per container
+  if ((container as any)._cardRefBound) return;
+  (container as any)._cardRefBound = true;
+  container.addEventListener('click', (e) => {
+    const ref = (e.target as HTMLElement).closest('.card-ref') as HTMLElement;
+    if (!ref) return;
+    e.preventDefault();
+    const id = parseInt(ref.dataset.refId || '');
+    if (id) focusCard(id);
+  });
+}
+
 async function renderChatHistory(): Promise<void> {
+  // Skip if currently streaming — the DOM is being built incrementally
+  if (isStreaming) return;
+
   const messages = document.getElementById('aiMessages');
   if (!messages) return;
 
@@ -549,8 +615,26 @@ async function renderChatHistory(): Promise<void> {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
         </div>
         <div class="ai-welcome-text">我可以帮你分析画布上的思维结构、质疑你的假设、发现逻辑漏洞。</div>
-        <div class="ai-welcome-hint">试试问我："我的思维链有什么漏洞？"</div>
+        <div class="ai-welcome-actions">
+          <button class="ai-welcome-action" data-prompt="分析画布上的思维链，找出逻辑漏洞和薄弱环节">分析思维链</button>
+          <button class="ai-welcome-action" data-prompt="发现画布上卡片之间潜在的关联和隐藏模式">发现关联</button>
+          <button class="ai-welcome-action" data-prompt="质疑我当前的核心假设，提出反面论点">质疑假设</button>
+        </div>
       </div>`;
+
+    // Attach quick action listeners
+    messages.querySelectorAll('.ai-welcome-action').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const prompt = (btn as HTMLElement).dataset.prompt;
+        if (prompt) {
+          const input = document.getElementById('aiInput') as HTMLTextAreaElement;
+          if (input) {
+            input.value = prompt;
+            input.focus();
+          }
+        }
+      });
+    });
     return;
   }
 
@@ -564,7 +648,10 @@ async function renderChatHistory(): Promise<void> {
     })
     .map(msg => {
       if (msg.role === 'user') {
-        return `<div class="ai-msg user"><div class="ai-msg-body">${formatReply(msg.content)}</div></div>`;
+        return `<div class="ai-msg-row user">
+          <div class="ai-msg-avatar user-avatar">👤</div>
+          <div class="ai-msg user"><div class="ai-msg-body">${formatReply(msg.content)}</div></div>
+        </div>`;
       }
       // Assistant message
       let body = '';
@@ -574,19 +661,23 @@ async function renderChatHistory(): Promise<void> {
       if (msg.tool_calls?.length) {
         const listId = `tc-${Math.random().toString(36).slice(2, 8)}`;
         const items = msg.tool_calls.map(tc =>
-          `<div class="tool-call-item">${escapeHtml(getToolDescription(tc.name, tc.arguments || {}))}</div>`
+          `<div class="tool-call-item"><span class="tool-call-icon">⚙</span>${escapeHtml(getToolDescription(tc.name, tc.arguments || {}))}</div>`
         ).join('');
         body += `<div class="tool-calls-summary">
           <span class="tool-calls-toggle" onclick="this.classList.toggle('open');document.getElementById('${listId}').classList.toggle('open')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
-            ${msg.tool_calls.length} 次工具调用
+            工具调用 <span class="tool-calls-badge">${msg.tool_calls.length}</span>
           </span>
           <div class="tool-calls-list" id="${listId}">${items}</div>
         </div>`;
       }
-      return `<div class="ai-msg ai"><div class="ai-msg-body">${body}</div></div>`;
+      return `<div class="ai-msg-row ai">
+        <div class="ai-msg-avatar ai-avatar">✦</div>
+        <div class="ai-msg ai"><div class="ai-msg-body">${body}</div></div>
+      </div>`;
     }).join('');
 
+  attachCardRefHandlers(messages);
   messages.scrollTop = messages.scrollHeight;
 }
 
@@ -687,15 +778,21 @@ async function sendStreamingMessage(text: string): Promise<void> {
   // Add user message to UI
   const messages = document.getElementById('aiMessages');
   if (messages) {
-    const userMsg = document.createElement('div');
-    userMsg.className = 'ai-msg user';
-    userMsg.innerHTML = `<div class="ai-msg-body">${formatReply(text)}</div>`;
-    messages.appendChild(userMsg);
+    const userRow = document.createElement('div');
+    userRow.className = 'ai-msg-row user';
+    userRow.innerHTML = `
+      <div class="ai-msg-avatar user-avatar">👤</div>
+      <div class="ai-msg user"><div class="ai-msg-body">${formatReply(text)}</div></div>
+    `;
+    messages.appendChild(userRow);
 
-    const streamingMsg = document.createElement('div');
-    streamingMsg.className = 'ai-msg ai streaming';
-    streamingMsg.innerHTML = '<div class="ai-msg-body"><em class="streaming-cursor">思考中…</em></div>';
-    messages.appendChild(streamingMsg);
+    const streamingRow = document.createElement('div');
+    streamingRow.className = 'ai-msg-row ai';
+    streamingRow.innerHTML = `
+      <div class="ai-msg-avatar ai-avatar">✦</div>
+      <div class="ai-msg ai streaming"><div class="ai-msg-body"><em class="streaming-cursor">思考中…</em></div></div>
+    `;
+    messages.appendChild(streamingRow);
     messages.scrollTop = messages.scrollHeight;
   }
 
@@ -709,6 +806,7 @@ async function sendStreamingMessage(text: string): Promise<void> {
   let thinkingStartTime = 0;
   let thinkingContent = '';
   let streamingToolCalls: string[] = [];
+  let streamingToolCallData: { name: string; arguments: Record<string, any> }[] = [];
   let toolCallsContainer: HTMLElement | null = null;
 
   try {
@@ -772,6 +870,7 @@ async function sendStreamingMessage(text: string): Promise<void> {
             // Add tool call item
             const desc = getToolDescription(chunk.tool_call.name, chunk.tool_call.arguments);
             streamingToolCalls.push(desc);
+            streamingToolCallData.push({ name: chunk.tool_call.name, arguments: chunk.tool_call.arguments });
             const list = toolCallsContainer?.querySelector('.tool-calls-list');
             if (list) {
               const item = document.createElement('div');
@@ -801,7 +900,7 @@ async function sendStreamingMessage(text: string): Promise<void> {
             thinkingStartTime = 0;
           }
 
-          // Finalize
+          // Finalize streamed element (remove streaming indicator)
           const streamingEl = messages?.querySelector('.ai-msg.streaming');
           if (streamingEl) {
             streamingEl.classList.remove('streaming');
@@ -845,6 +944,25 @@ async function sendStreamingMessage(text: string): Promise<void> {
       currentRuntime.cleanup();
       currentRuntime = null;
     }
+  }
+
+  // Sync streamed messages to frontend session cache and re-render
+  if (fullText || streamingToolCallData.length > 0) {
+    const session = sessionManager.getCurrentSession();
+    if (session) {
+      session.messages.push({ role: 'user', content: cleanedInput });
+      const assistantMsg: any = { role: 'assistant', content: fullText || null };
+      if (streamingToolCallData.length > 0) {
+        assistantMsg.tool_calls = streamingToolCallData.map((tc, i) => ({
+          id: `tc_${i}`,
+          name: tc.name,
+          arguments: tc.arguments,
+        }));
+      }
+      session.messages.push(assistantMsg);
+    }
+    // Re-render from session cache (isStreaming is now false)
+    await renderChatHistory();
   }
 
   // Clear input
@@ -1080,6 +1198,48 @@ export function initAiPanel(): void {
         yoloMode ? '🚀 YOLO 模式已启用：所有操作将自动批准' : '🔒 审批模式已启用：操作需要确认',
         yoloMode ? 'success' : 'info'
       );
+    });
+  }
+
+  // ── Panel resize via left-edge drag handle ──
+  const resizeHandle = document.getElementById('aiResizeHandle');
+  const panel = document.getElementById('aiPanel');
+  if (resizeHandle && panel) {
+    const MIN_WIDTH = 320;
+    const MAX_WIDTH_RATIO = 0.8;
+
+    // Restore saved width
+    const savedWidth = localStorage.getItem('ai-panel-width');
+    if (savedWidth) {
+      panel.style.setProperty('--ai-panel-width', `${savedWidth}px`);
+    }
+
+    let startX = 0;
+    let startWidth = 0;
+
+    resizeHandle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      resizeHandle.setPointerCapture(e.pointerId);
+      resizeHandle.classList.add('active');
+      startX = e.clientX;
+      startWidth = panel.getBoundingClientRect().width;
+      document.body.style.userSelect = 'none';
+    });
+
+    resizeHandle.addEventListener('pointermove', (e) => {
+      if (!resizeHandle.hasPointerCapture(e.pointerId)) return;
+      const dx = startX - e.clientX; // panel is right-anchored
+      const maxW = window.innerWidth * MAX_WIDTH_RATIO;
+      const newWidth = Math.max(MIN_WIDTH, Math.min(maxW, startWidth + dx));
+      panel.style.setProperty('--ai-panel-width', `${newWidth}px`);
+    });
+
+    resizeHandle.addEventListener('pointerup', (e) => {
+      resizeHandle.releasePointerCapture(e.pointerId);
+      resizeHandle.classList.remove('active');
+      document.body.style.userSelect = '';
+      const w = panel.getBoundingClientRect().width;
+      localStorage.setItem('ai-panel-width', String(Math.round(w)));
     });
   }
 }

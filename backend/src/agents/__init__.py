@@ -7,6 +7,7 @@ from src.agents.conclusion_agent import ConclusionAgent
 from src.agents.relation_discoverer import RelationDiscovererAgent
 from src.agents.cognitive_debate_agent import CognitiveDebateAgent
 from src.agents.research_path_agent import ResearchPathAgent
+from src.agents.knowledge_graph_agent import KnowledgeGraphAgent
 
 __all__ = [
     "BaseAgent",
@@ -17,4 +18,5 @@ __all__ = [
     "RelationDiscovererAgent",
     "CognitiveDebateAgent",
     "ResearchPathAgent",
+    "KnowledgeGraphAgent",
 ]

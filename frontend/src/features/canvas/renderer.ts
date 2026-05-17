@@ -100,10 +100,30 @@ function formatCardText(text: string): string {
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
   // Inline code
   html = html.replace(/`(.+?)`/g, '<code style="font:11px/1 var(--font-mono);background:var(--bg);padding:1px 4px;border-radius:3px">$1</code>');
+  // Markdown tables (before line-level formatting)
+  html = html.replace(/((?:^\|.+\|$\n?)+)/gm, (tableBlock) => {
+    const rows = tableBlock.trim().split('\n').filter(r => r.trim());
+    if (rows.length < 2) return tableBlock;
+    const sepIdx = rows.findIndex(r => /^\|(?:[\s\-:]*-[\s\-:]*\|)+$/.test(r.trim()));
+    if (sepIdx < 0) return tableBlock;
+    const parseCells = (row: string): string[] =>
+      row.split('|').slice(1, -1).map(c => c.trim());
+    const headers = parseCells(rows[0]);
+    const bodyRows = rows.slice(sepIdx + 1).map(parseCells);
+    const thead = `<thead><tr>${headers.map(h => `<th style="font-size:11px;padding:3px 6px;border:1px solid var(--border);background:var(--bg)">${h}</th>`).join('')}</tr></thead>`;
+    const tbody = `<tbody>${bodyRows.map(r => `<tr>${r.map(c => `<td style="font-size:11px;padding:3px 6px;border:1px solid var(--border)">${c}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    return `<table style="border-collapse:collapse;margin:4px 0;font-size:11px">${thead}${tbody}</table>`;
+  });
   // Lists
   html = html.replace(/^[-*] (.+)$/gm, '• $1');
   // Horizontal rule
   html = html.replace(/^---$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:6px 0">');
+  // Card references (#53) — must come after header processing to avoid matching # Header
+  html = html.replace(/(?<!\w)#(\d+)/g, (_match, id) => {
+    const card = state.cards.find(c => c.id === parseInt(id));
+    const label = card ? escapeHtml(card.text.slice(0, 30)) : `卡片 #${id}`;
+    return `<span class="card-ref" data-ref-id="${id}" title="${label}">#${id}</span>`;
+  });
   // Newlines
   html = html.replace(/\n/g, '<br>');
   return html;
@@ -125,6 +145,26 @@ function renderWikilinks(text: string): string {
     const displayText = targetCard ? (targetCard.text.length > 20 ? targetCard.text.slice(0, 20) + '…' : targetCard.text) : ref;
     return `<span class="wikilink" data-wiki-target="${targetId}" title="${escapeHtml(displayText)}">[[${escapeHtml(ref)}]]</span>`;
   });
+}
+
+function countBacklinks(cardId: number): number {
+  let count = 0;
+  for (const card of state.cards) {
+    const matches = card.text.matchAll(/\[\[(.+?)\]\]/g);
+    for (const match of matches) {
+      const ref = match[1];
+      const refId = parseInt(ref);
+      if (!isNaN(refId) && refId === cardId) {
+        count++;
+      } else if (state.cards.find(c => c.id === cardId && c.text.includes(ref))) {
+        // Text match — only count if ref matches this specific card's text
+        // and the referenced card is this card
+        const target = state.cards.find(c => c.text.includes(ref));
+        if (target && target.id === cardId) count++;
+      }
+    }
+  }
+  return count;
 }
 
 function renderLatex(html: string): string {
@@ -504,6 +544,7 @@ export function renderCanvas(): void {
     const hlClass = highlightMap
       ? (highlightMap.has(c.id) ? `highlight-depth-${Math.min(highlightMap.get(c.id)!, 3)}` : 'highlight-dim')
       : '';
+    const searchClass = state.searchResultIds?.has(c.id) ? 'search-match' : '';
     const isConclusion = c.status === 'conclusion';
     const statusTag = c.status === 'pending'
       ? `<span class="card-status-tag pending">${t('status-pending')}</span>`
@@ -514,18 +555,21 @@ export function renderCanvas(): void {
           : '';
 
     // Check if card has a specialized type
-    const hasSpecializedType = c.type && ['distillation', 'socratic', 'flow_analysis', 'choice', 'vote'].includes(c.type);
+    const hasSpecializedType = c.type && ['note', 'distillation', 'socratic', 'flow_analysis', 'choice', 'vote', 'debate', 'research_path', 'progress', 'checklist', 'quote'].includes(c.type);
     const cardTypeIcon = hasSpecializedType ? getCardTypeIcon(c.type) : '';
 
+    const galleryClass = state.galleryMode ? ' gallery-readonly' : '';
+    const aiBtnHtml = state.galleryMode ? '' : `<button class="card-ai-btn" data-action="card-ai" data-card-id="${c.id}" title="${t('card-ai-title')}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      </button>`;
+
     if (isConclusion) {
-      return `<div class="canvas-card conclusion-card ${selected} ${hlClass}" data-id="${c.id}"
+      return `<div class="canvas-card conclusion-card${galleryClass} ${selected} ${hlClass} ${searchClass}" data-id="${c.id}"
         style="left:${c.x}px;top:${c.y}px">
         <div class="card-head">
           <span class="card-source">${t('status-conclusion')}</span>
         </div>
-        <button class="card-ai-btn" data-action="card-ai" data-card-id="${c.id}" title="${t('card-ai-title')}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-        </button>
+        ${aiBtnHtml}
         <div class="card-body card-content" data-card-id="${c.id}"></div>
         <span class="card-expand" data-action="toggle-expand" data-card-id="${c.id}">${t('expand-chain')}</span>
         ${statusTag}
@@ -533,19 +577,17 @@ export function renderCanvas(): void {
     }
 
     const sc = getSourceColor(c.source);
-    return `<div class="canvas-card ${selected} ${hlClass}" data-id="${c.id}"
+    return `<div class="canvas-card${galleryClass} ${selected} ${hlClass} ${searchClass}" data-id="${c.id}"
       style="left:${c.x}px;top:${c.y}px;border-left:3px solid ${sc.accent}">
       ${c.openQuestion ? `<div class="card-question-badge" title="${escapeHtml(c.openQuestion)}">?</div>` : ''}
       <div class="card-head">
         ${cardTypeIcon ? `<span class="card-type-icon" title="${c.type}">${cardTypeIcon}</span>` : ''}
         <span class="card-source" style="color:${sc.text};background:${sc.bg};padding:1px 6px;border-radius:3px">${escapeHtml(c.source)}</span>
       </div>
-      <button class="card-ai-btn" data-action="card-ai" data-card-id="${c.id}" title="${t('card-ai-title')}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-      </button>
+      ${aiBtnHtml}
       <div class="card-body card-content" data-card-id="${c.id}"></div>
       ${statusTag}
-      ${renderCardPorts(c)}
+      ${state.galleryMode ? '' : renderCardPorts(c)}
     </div>`;
   }).join('');
 
@@ -558,12 +600,16 @@ export function renderCanvas(): void {
     if (c.type === 'image' && c.metadata?.imageData) {
       const nameHtml = c.metadata?.imageName ? `<div class="card-image-name">${escapeHtml(c.metadata.imageName)}</div>` : '';
       container.innerHTML = `${nameHtml}<img src="${c.metadata.imageData}" alt="pasted image" />`;
-    } else if (c.type && ['distillation', 'socratic', 'flow_analysis', 'choice', 'vote', 'conclusion'].includes(c.type)) {
+    } else if (c.type && ['note', 'distillation', 'socratic', 'flow_analysis', 'choice', 'vote', 'conclusion', 'debate', 'research_path', 'progress', 'checklist', 'quote'].includes(c.type)) {
       // Use specialized renderer if card has a type
       renderCardContent(c, container);
     } else {
       // Fallback to default text rendering
-      container.innerHTML = renderLatex(renderWikilinks(formatCardText(c.text)));
+      const backlinks = countBacklinks(c.id);
+      const backlinkHtml = backlinks > 0
+        ? `<span class="backlink-count" title="${t('backlink-count', { n: backlinks })}">↩ ${backlinks}</span>`
+        : '';
+      container.innerHTML = renderLatex(renderWikilinks(formatCardText(c.text))) + backlinkHtml;
     }
   });
   renderConnections();

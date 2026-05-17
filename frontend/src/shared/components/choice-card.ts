@@ -41,7 +41,7 @@ export function renderChoiceCard(card: Card, container: HTMLElement): void {
       </div>
 
       <div class="choice-options">
-        ${metadata.options.map((option, idx) => `
+        ${(metadata.options || []).map((option, idx) => `
           <div class="choice-option ${metadata.user_choice === option.name ? 'selected' : ''}"
                data-option-name="${escapeHtml(option.name)}">
             <div class="option-header">
@@ -97,8 +97,8 @@ export function renderChoiceCard(card: Card, container: HTMLElement): void {
     </div>
   `;
 
-  // Attach event listeners for option selection
-  attachChoiceListeners(card.id);
+  // Attach event listeners for option selection (skip in gallery mode — read-only preview)
+  if (!state.galleryMode) attachChoiceListeners(card.id);
 }
 
 /**

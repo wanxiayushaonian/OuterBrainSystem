@@ -8,6 +8,14 @@ import { renderSocraticCard, isSocraticCard } from './socratic-card';
 import { renderFlowAnalysisCard, isFlowAnalysisCard } from './flow-analysis-card';
 import { renderChoiceCard, isChoiceCard } from './choice-card';
 import { renderVoteCard, isVoteCard } from './vote-card';
+import { renderDebateCard, isDebateCard } from './debate-card';
+import { renderResearchPathCard, isResearchPathCard } from './research-path-card';
+import { renderProgressCard, isProgressCard } from './progress-card';
+import { renderChecklistCard, isChecklistCard } from './checklist-card';
+import { renderQuoteCard, isQuoteCard } from './quote-card';
+import { renderNoteCard, isNoteCard } from './note-card';
+import { renderConclusionCard, isConclusionCard } from './conclusion-card';
+import { renderImageCard, isImageCard } from './image-card';
 
 /**
  * Render card content based on card type
@@ -15,6 +23,21 @@ import { renderVoteCard, isVoteCard } from './vote-card';
  */
 export function renderCardContent(card: Card, container: HTMLElement): void {
   // Route to specialized renderers
+  if (isNoteCard(card)) {
+    renderNoteCard(card, container);
+    return;
+  }
+
+  if (isConclusionCard(card)) {
+    renderConclusionCard(card, container);
+    return;
+  }
+
+  if (isImageCard(card)) {
+    renderImageCard(card, container);
+    return;
+  }
+
   if (isDistillationCard(card)) {
     renderDistillationCard(card, container);
     return;
@@ -40,51 +63,33 @@ export function renderCardContent(card: Card, container: HTMLElement): void {
     return;
   }
 
-  // Default rendering for note cards and conclusion cards
-  renderDefaultCard(card, container);
-}
-
-/**
- * Default card renderer for note and conclusion types
- */
-function renderDefaultCard(card: Card, container: HTMLElement): void {
-  const escapeHtml = (text: string): string => {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  };
-
-  // For conclusion cards, show summary and chain info
-  if (card.type === 'conclusion' && card.summary) {
-    container.innerHTML = `
-      <div class="conclusion-card">
-        <div class="conclusion-title">${escapeHtml(card.text)}</div>
-        <div class="conclusion-summary">${escapeHtml(card.summary)}</div>
-        ${card.chainIds && card.chainIds.length > 0 ? `
-          <div class="conclusion-chain">
-            <span class="chain-label">关联卡片：</span>
-            <span class="chain-ids">${card.chainIds.join(', ')}</span>
-          </div>
-        ` : ''}
-      </div>
-    `;
+  if (isDebateCard(card)) {
+    renderDebateCard(card, container);
     return;
   }
 
-  // Default note card rendering
-  container.innerHTML = `
-    <div class="note-card">
-      ${card.title ? `<div class="note-title">${escapeHtml(card.title)}</div>` : ''}
-      <div class="note-text">${escapeHtml(card.text)}</div>
-      ${card.keywords && card.keywords.length > 0 ? `
-        <div class="note-keywords">
-          ${card.keywords.map(kw =>
-            `<span class="note-keyword">${escapeHtml(kw)}</span>`
-          ).join('')}
-        </div>
-      ` : ''}
-    </div>
-  `;
+  if (isResearchPathCard(card)) {
+    renderResearchPathCard(card, container);
+    return;
+  }
+
+  if (isProgressCard(card)) {
+    renderProgressCard(card, container);
+    return;
+  }
+
+  if (isChecklistCard(card)) {
+    renderChecklistCard(card, container);
+    return;
+  }
+
+  if (isQuoteCard(card)) {
+    renderQuoteCard(card, container);
+    return;
+  }
+
+  // Fallback for unknown types
+  container.innerHTML = `<div class="note-card"><div class="note-text">${card.text}</div></div>`;
 }
 
 /**
@@ -99,6 +104,11 @@ export function getCardTypeDisplayName(type?: string): string {
     choice: '选择',
     vote: '投票',
     conclusion: '结论',
+    debate: '辩论',
+    research_path: '研究路径',
+    progress: '进度',
+    checklist: '清单',
+    quote: '引用',
   };
 
   return typeNames[type || 'note'] || '笔记';
@@ -116,6 +126,12 @@ export function getCardTypeIcon(type?: string): string {
     choice: '🎯',
     vote: '🗳️',
     conclusion: '🎓',
+    debate: '⚖️',
+    research_path: '🗺️',
+    progress: '📊',
+    checklist: '☑️',
+    quote: '💬',
+    image: '🖼️',
   };
 
   return typeIcons[type || 'note'] || '📝';

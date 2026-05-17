@@ -27,7 +27,10 @@ let lastCanvasMouse = { x: 300, y: 200 };
 // ── Canvas card mouse down ──
 export function onCanvasCardMouseDown(e: MouseEvent, id: number): void {
   if (e.button === 2) return;
-  if ((e.target as HTMLElement).closest('.card-ai-btn')) return;
+  // Don't start drag if clicking on interactive elements inside the card
+  const target = e.target as HTMLElement;
+  if (target.closest('.card-ai-btn')) return;
+  if (target.closest('input, textarea, button, select, label, details, summary, a, .keyword-item, .reflection-input, .vote-input, .option-radio, .checklist-item, .wikilink, .card-ref')) return;
   e.stopPropagation();
 
   const card = state.cards.find(c => c.id === id);
@@ -75,6 +78,7 @@ export function onCanvasCardMouseDown(e: MouseEvent, id: number): void {
 
 // ── Start connection from port ──
 export function startConnect(e: MouseEvent, id: number): void {
+  if (state.galleryMode) return;
   e.stopPropagation();
   e.preventDefault();
   state.connecting = true;
@@ -97,6 +101,7 @@ export function startConnect(e: MouseEvent, id: number): void {
 
 // ── Canvas card double-click (edit) ──
 export function onCanvasCardDblClick(e: MouseEvent, id: number): void {
+  if (state.galleryMode) return;
   e.stopPropagation();
   openCardEditModal(id);
 }
@@ -395,6 +400,7 @@ function isTextInputFocused(): boolean {
 
 // ── Keyboard shortcuts ──
 function onKeyDown(e: KeyboardEvent): void {
+  if (state.galleryMode) return;
   const inInput = isTextInputFocused();
 
   // Ctrl+Shift+C → Capture
@@ -616,6 +622,7 @@ function createImageCard(dataUrl: string, screenX: number, screenY: number, toas
 
 // ── Canvas paste (image from clipboard) ──
 function onCanvasPaste(e: ClipboardEvent): void {
+  if (state.galleryMode) return;
   if (isTextInputFocused()) return;
   const items = e.clipboardData?.items;
   if (!items) return;
@@ -631,6 +638,7 @@ function onCanvasPaste(e: ClipboardEvent): void {
 
 // ── Canvas drop (inbox → canvas, or image file → canvas) ──
 function onCanvasDrop(e: DragEvent): void {
+  if (state.galleryMode) return;
   e.preventDefault();
 
   // Check for dropped image files first
@@ -711,22 +719,12 @@ export function initInteractions(): void {
       if (!card) return;
       const id = parseInt(card.getAttribute('data-id')!);
 
+      // Wikilink — skip card drag, let click handler handle it
+      if (target.closest('.wikilink, .card-ref')) return;
+
       // Card connection port
       if (target.closest('[data-action="connect"]')) {
         startConnect(e, id);
-        return;
-      }
-      // Wikilink click
-      const wikilink = target.closest('.wikilink') as HTMLElement | null;
-      if (wikilink) {
-        e.stopPropagation();
-        const targetId = parseInt(wikilink.dataset.wikiTarget!);
-        if (targetId >= 0) {
-          state.selectedCards.clear();
-          state.selectedCards.add(targetId);
-          renderCanvas();
-          renderConnections();
-        }
         return;
       }
       // AI button
@@ -747,6 +745,7 @@ export function initInteractions(): void {
     });
 
     canvasArea.addEventListener('contextmenu', (e: MouseEvent) => {
+      if (state.galleryMode) return;
       const card = (e.target as HTMLElement).closest('.canvas-card') as HTMLElement | null;
       if (card) {
         e.preventDefault();
@@ -784,6 +783,54 @@ export function initInteractions(): void {
   const canvasInner = document.getElementById('canvasInner');
   if (canvasInner) {
     canvasInner.addEventListener('click', (e: MouseEvent) => {
+      // Wikilink click — select card and pan viewport to it
+      const wikilink = (e.target as HTMLElement).closest('.wikilink') as HTMLElement | null;
+      if (wikilink && !state.didDrag) {
+        e.stopPropagation();
+        const targetId = parseInt(wikilink.dataset.wikiTarget!);
+        if (targetId >= 0) {
+          state.selectedCards.clear();
+          state.selectedCards.add(targetId);
+          const targetCard = state.cards.find(c => c.id === targetId);
+          if (targetCard) {
+            const area = document.getElementById('canvasArea');
+            if (area) {
+              const rect = area.getBoundingClientRect();
+              state.pan.x = rect.width / 2 - (targetCard.x + 120) * state.zoom;
+              state.pan.y = rect.height / 2 - (targetCard.y + 40) * state.zoom;
+              applyTransform();
+            }
+          }
+          renderCanvas();
+          renderConnections();
+        }
+        return;
+      }
+
+      // Card-ref click (#53) — select card and pan viewport to it
+      const cardRef = (e.target as HTMLElement).closest('.card-ref') as HTMLElement | null;
+      if (cardRef && !state.didDrag) {
+        e.stopPropagation();
+        const targetId = parseInt(cardRef.dataset.refId || '');
+        if (!isNaN(targetId)) {
+          state.selectedCards.clear();
+          state.selectedCards.add(targetId);
+          const targetCard = state.cards.find(c => c.id === targetId);
+          if (targetCard) {
+            const area = document.getElementById('canvasArea');
+            if (area) {
+              const rect = area.getBoundingClientRect();
+              state.pan.x = rect.width / 2 - (targetCard.x + 120) * state.zoom;
+              state.pan.y = rect.height / 2 - (targetCard.y + 40) * state.zoom;
+              applyTransform();
+            }
+          }
+          renderCanvas();
+          renderConnections();
+        }
+        return;
+      }
+
       // Group lock toggle
       const lockEl = (e.target as HTMLElement).closest('.group-lock') as HTMLElement | null;
       if (lockEl && !state.didDrag) {
@@ -823,6 +870,7 @@ export function initInteractions(): void {
       }
     });
     canvasInner.addEventListener('contextmenu', (e: MouseEvent) => {
+      if (state.galleryMode) return;
       const label = (e.target as HTMLElement).closest('.conn-label') as HTMLElement | null;
       if (label) {
         e.preventDefault();

@@ -31,12 +31,12 @@ export function renderSocraticCard(card: Card, container: HTMLElement): void {
 
       <div class="socratic-claim">
         <div class="claim-label">原始观点：</div>
-        <div class="claim-text">${escapeHtml(metadata.original_claim)}</div>
+        <div class="claim-text">${escapeHtml(metadata.original_claim || '')}</div>
       </div>
 
       <div class="socratic-challenges">
         <div class="challenges-label">苏格拉底式质疑：</div>
-        ${metadata.challenges.map((challenge, idx) => `
+        ${(metadata.challenges || []).map((challenge, idx) => `
           <div class="challenge-item" data-challenge-idx="${idx}">
             <div class="challenge-question">
               <span class="challenge-icon">❓</span>
@@ -70,8 +70,8 @@ export function renderSocraticCard(card: Card, container: HTMLElement): void {
     </div>
   `;
 
-  // Attach event listeners for reflection inputs
-  attachReflectionListeners(card.id);
+  // Attach event listeners for reflection inputs (skip in gallery mode — read-only preview)
+  if (!state.galleryMode) attachReflectionListeners(card.id);
 }
 
 /**
@@ -99,7 +99,7 @@ function updateReflection(cardId: number, challengeIdx: number, reflection: stri
   if (!card || !card.metadata) return;
 
   const metadata = card.metadata as SocraticMetadata;
-  if (metadata.challenges[challengeIdx]) {
+  if (metadata.challenges && metadata.challenges[challengeIdx]) {
     metadata.challenges[challengeIdx].user_reflection = reflection;
     scheduleSave();
   }

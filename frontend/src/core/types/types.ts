@@ -12,7 +12,7 @@ export interface Card {
   x: number;
   y: number;
   // Card type system (Phase 2)
-  type?: 'note' | 'distillation' | 'socratic' | 'flow_analysis' | 'choice' | 'vote' | 'conclusion' | 'image';
+  type?: 'note' | 'distillation' | 'socratic' | 'flow_analysis' | 'choice' | 'vote' | 'conclusion' | 'image' | 'debate' | 'research_path' | 'progress' | 'checklist' | 'quote';
   metadata?: Record<string, any>;
   // Extended for conclusion cards
   summary?: string;
@@ -119,6 +119,33 @@ export interface AppState {
   // Highlight (transient)
   highlightRootId: number | null;
   highlightDepth: number;
+  // Search results (transient)
+  searchResultIds: Set<number> | null;
+  // Gallery mode (transient)
+  galleryMode: boolean;
+}
+
+// Knowledge Graph types
+export interface GraphEntity {
+  id: number;
+  name: string;
+  entity_type: string;
+  description: string;
+  card_ids: number[];
+}
+
+export interface GraphRelation {
+  id: number;
+  source_id: number;
+  target_id: number;
+  relation_type: string;
+  confidence: number;
+  evidence: string;
+}
+
+export interface GraphData {
+  entities: GraphEntity[];
+  relations: GraphRelation[];
 }
 
 export type LangCode = 'bilingual' | 'zh' | 'en';

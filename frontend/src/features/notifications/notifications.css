@@ -1,0 +1,81 @@
+/* ═══════════════════════════════════════════════════════
+   Proactive Notification Toast Styles
+   ═══════════════════════════════════════════════════════ */
+
+.notification-container {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.notification-toast {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: var(--shadow-md);
+  max-width: 320px;
+  pointer-events: all;
+  animation: slide-in-notification 0.3s ease-out;
+}
+
+@keyframes slide-in-notification {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.notification-body {
+  font-size: 13px;
+  color: var(--fg);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.notification-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.notification-action-btn {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: white;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity var(--transition);
+}
+
+.notification-action-btn:hover {
+  opacity: 0.85;
+}
+
+.notification-dismiss-btn {
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.notification-dismiss-btn:hover {
+  background: var(--bg);
+}

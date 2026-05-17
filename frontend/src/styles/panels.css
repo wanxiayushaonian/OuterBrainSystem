@@ -211,7 +211,7 @@
 .ai-panel {
   position: fixed;
   top: 48px; right: 0;
-  width: 400px;
+  width: var(--ai-panel-width, 400px);
   height: calc(100vh - 48px);
   background: var(--bg);
   border-left: 1px solid var(--border);
@@ -223,6 +223,21 @@
   transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ai-panel.open { transform: translateX(0); }
+
+/* ── Resize Handle ── */
+.ai-resize-handle {
+  position: absolute;
+  left: 0; top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+  transition: background 150ms;
+}
+.ai-resize-handle:hover,
+.ai-resize-handle.active {
+  background: oklch(55% 0.16 255 / 0.3);
+}
 
 #aiBackdrop { display: none !important; }
 
@@ -301,14 +316,18 @@
   padding: 20px 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 #aiMessages {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   align-items: flex-start;
 }
+/* Scrollbar */
+#aiMessages::-webkit-scrollbar { width: 5px; }
+#aiMessages::-webkit-scrollbar-thumb { background: oklch(72% 0.01 250 / 0.3); border-radius: 2.5px; }
+#aiMessages::-webkit-scrollbar-thumb:hover { background: oklch(60% 0.02 250 / 0.5); }
 
 /* ── Welcome State ── */
 .ai-welcome {
@@ -329,13 +348,38 @@
 .ai-welcome-text {
   font: 14px/1.6 var(--font-body);
   color: var(--fg);
-  margin-bottom: 10px;
+  margin-bottom: 16px;
   max-width: 260px;
 }
 .ai-welcome-hint {
   font: 12px/1.5 var(--font-body);
   color: var(--muted);
   opacity: 0.7;
+}
+.ai-welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.ai-welcome-action {
+  font: 12px/1 var(--font-body);
+  padding: 8px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--fg);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.ai-welcome-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ── Session List ── */
@@ -355,6 +399,7 @@
 }
 .session-item.active {
   border-color: var(--accent);
+  border-left: 3px solid var(--accent);
   background: var(--accent-light);
 }
 .session-item-header {
@@ -362,12 +407,27 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 .session-item-title {
   font: 600 13px/1.4 var(--font-body);
   color: var(--fg);
   flex: 1;
+}
+.session-item-preview {
+  font: 12px/1.4 var(--font-body);
+  color: var(--muted);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.preview-role {
+  font-size: 11px;
+  flex-shrink: 0;
 }
 .session-item-delete {
   background: none;
@@ -406,22 +466,33 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 6px;
   background: oklch(96% 0.005 250);
+  border: 1px solid var(--border);
   transition: all var(--transition);
 }
 .tool-calls-toggle:hover {
   background: oklch(93% 0.01 250);
   color: var(--fg);
+  border-color: var(--accent);
 }
 .tool-calls-toggle svg {
   width: 10px; height: 10px;
-  transition: transform var(--transition);
+  transition: transform 200ms ease;
   flex-shrink: 0;
 }
 .tool-calls-toggle.open svg {
   transform: rotate(90deg);
+}
+.tool-calls-badge {
+  font: 600 10px/1 var(--font-mono);
+  background: var(--accent);
+  color: white;
+  border-radius: 8px;
+  padding: 1px 5px;
+  min-width: 14px;
+  text-align: center;
 }
 .tool-calls-list {
   display: none;
@@ -434,12 +505,21 @@
   font: 11px/1.5 var(--font-body);
   color: var(--muted);
   padding: 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
-.tool-call-item::before {
-  content: '⚙';
-  margin-right: 5px;
-  font-size: 9px;
+.tool-call-icon {
+  font-size: 10px;
   opacity: 0.6;
+  flex-shrink: 0;
+}
+.tool-call-item.tool-executing .tool-call-icon {
+  color: var(--accent);
+  animation: tool-spin 0.8s linear infinite;
+}
+.tool-call-item.tool-done .tool-call-icon {
+  color: oklch(50% 0.14 145);
 }
 /* Conversation list */
 .conv-item {
@@ -493,6 +573,11 @@
   word-break: break-word;
   line-height: 1.6;
   position: relative;
+  animation: msg-fade-in 200ms ease-out;
+}
+@keyframes msg-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .ai-msg.system {
   background: transparent;
@@ -503,12 +588,39 @@
   max-width: 100%;
   padding: 4px 0;
 }
-/* AI消息 - 左对齐，浅色背景 */
+/* Message row: icon + bubble */
+.ai-msg-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 85%;
+  animation: msg-fade-in 200ms ease-out;
+}
+.ai-msg-row.user { flex-direction: row-reverse; align-self: flex-end; }
+.ai-msg-row.ai { align-self: flex-start; }
+.ai-msg-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  margin-top: 2px;
+}
+.ai-msg-avatar.user-avatar {
+  background: oklch(92% 0.02 250);
+  border: 1px solid var(--border);
+}
+.ai-msg-avatar.ai-avatar {
+  background: var(--accent-light);
+  border: 1px solid oklch(85% 0.06 255);
+}
+/* AI消息 - 左对齐，浅色背景，左侧色条 */
 .ai-msg.ai {
   background: var(--surface);
   color: var(--fg);
   align-self: flex-start !important;
   border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   border-bottom-left-radius: 4px;
   margin-right: auto;
 }
@@ -582,6 +694,32 @@
   animation: cursor-blink 0.8s infinite;
 }
 
+/* ── Card reference (#53) in AI messages ── */
+.card-ref {
+  display: inline;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: oklch(92% 0.03 250 / 0.7);
+  color: var(--accent);
+  font: 12px/1 var(--font-mono);
+  cursor: pointer;
+  transition: background 150ms ease;
+  text-decoration: none;
+}
+.card-ref:hover {
+  background: oklch(85% 0.05 250 / 0.8);
+  text-decoration: underline;
+}
+
+/* ── Card flash-highlight animation (on canvas) ── */
+@keyframes card-flash {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  30% { box-shadow: 0 0 0 4px oklch(70% 0.12 250 / 0.6); }
+}
+.card-flash {
+  animation: card-flash 0.8s ease;
+}
+
 /* ── Tool action indicator ── */
 .tool-action {
   padding: 4px 12px;
@@ -632,7 +770,7 @@
 }
 /* ── Footer / Input Area ── */
 .ai-panel-footer {
-  padding: 12px 16px 16px;
+  padding: 12px 16px 10px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
@@ -657,7 +795,7 @@
 }
 .ai-input-wrap textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px oklch(70% 0.12 255 / 0.1);
+  box-shadow: 0 0 0 3px oklch(70% 0.12 255 / 0.15);
 }
 .ai-input-wrap textarea::placeholder {
   color: var(--muted);
@@ -666,20 +804,45 @@
 .ai-input-wrap button {
   background: var(--accent); border: none; cursor: pointer;
   color: white; border-radius: 12px;
-  padding: 10px 18px;
-  font: 13px/1 var(--font-body);
-  font-weight: 500;
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
   transition: all var(--transition);
   flex-shrink: 0;
 }
-.ai-input-wrap button:hover { background: var(--accent-dim); }
+.ai-input-wrap button:hover { background: var(--accent-dim); transform: scale(1.05); }
+.ai-input-wrap button svg { stroke: white; }
 #aiStopBtn {
   background: oklch(60% 0.15 25);
   border-radius: 12px;
+  width: auto; height: auto;
   padding: 10px 18px;
+  font: 13px/1 var(--font-body);
+  font-weight: 500;
 }
 #aiStopBtn:hover {
   background: oklch(50% 0.15 25);
+}
+/* Keyboard shortcut hints */
+.ai-input-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+  font: 11px/1 var(--font-body);
+  color: var(--muted);
+  opacity: 0.6;
+}
+.ai-input-hint kbd {
+  display: inline-block;
+  font: 600 9px/1 var(--font-mono);
+  padding: 1px 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted);
+  box-shadow: 0 1px 0 var(--border);
+  margin: 0 1px;
 }
 
 /* ── Card AI Chat Button ── */

@@ -3,290 +3,189 @@
    ═══════════════════════════════════════════════════════ */
 
 .choice-card {
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 4px 0;
+  font: 13px/1.5 var(--font-body);
 }
 
 .choice-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 12px;
-  line-height: 1.4;
+  font: 600 14px/1.3 var(--font-body);
+  color: var(--fg);
+  margin-bottom: 10px;
 }
 
 /* Context */
 .choice-context {
-  margin-bottom: 12px;
-  padding: 10px;
-  background: white;
-  border-left: 3px solid #9b59b6;
-  border-radius: 4px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: var(--accent-light);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
 }
 
 .context-label {
-  font-size: 12px;
-  color: #7f8c8d;
+  font: 11px/1 var(--font-body);
+  color: var(--muted);
   margin-bottom: 4px;
   font-weight: 500;
 }
 
 .context-text {
-  font-size: 13px;
-  color: #2c3e50;
-  line-height: 1.5;
+  font: 13px/1.5 var(--font-body);
+  color: var(--fg);
 }
 
 /* Options */
 .choice-options {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .choice-option {
-  padding: 12px;
-  background: white;
-  border: 2px solid #dee2e6;
-  border-radius: 6px;
-  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition);
 }
 
 .choice-option:hover {
-  border-color: #9b59b6;
-  box-shadow: 0 2px 4px rgba(155, 89, 182, 0.1);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
 }
 
 .choice-option.selected {
-  border-color: #9b59b6;
-  background: #f4ecf7;
+  border-color: var(--accent);
+  background: var(--accent-light);
 }
 
 .option-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 .option-radio {
   cursor: pointer;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
 }
 
 .option-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #2c3e50;
+  font: 600 13px/1 var(--font-body);
+  color: var(--fg);
   flex: 1;
 }
 
 .option-score {
-  padding: 2px 8px;
-  background: #9b59b6;
-  color: white;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 2px 6px;
+  background: var(--accent);
+  color: oklch(100% 0 0);
+  border-radius: 10px;
+  font: 600 11px/1 var(--font-mono);
 }
 
 .option-description {
-  font-size: 13px;
-  color: #495057;
-  line-height: 1.5;
-  margin-bottom: 8px;
-  margin-left: 28px;
+  font: 12px/1.4 var(--font-body);
+  color: var(--muted);
+  margin-bottom: 6px;
+  margin-left: 24px;
 }
 
 .option-pros,
 .option-cons {
-  margin-left: 28px;
-  margin-top: 8px;
-  padding: 8px;
-  border-radius: 4px;
+  margin-left: 24px;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
 }
 
 .option-pros {
-  background: #e8f5e9;
+  background: oklch(95% 0.04 145);
 }
 
 .option-cons {
-  background: #ffebee;
+  background: oklch(95% 0.04 25);
 }
 
 .pros-label,
 .cons-label {
-  font-size: 12px;
+  font: 11px/1 var(--font-body);
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .pros-label {
-  color: #27ae60;
+  color: var(--success);
 }
 
 .cons-label {
-  color: #e74c3c;
+  color: var(--danger);
 }
 
 .pros-list,
 .cons-list {
   margin: 0;
-  padding-left: 20px;
-  font-size: 13px;
-  line-height: 1.5;
+  padding-left: 16px;
+  font: 12px/1.4 var(--font-body);
 }
 
 .pros-list li {
-  color: #27ae60;
+  color: var(--success);
 }
 
 .cons-list li {
-  color: #e74c3c;
+  color: var(--danger);
 }
 
 /* Recommendation */
 .choice-recommendation {
-  padding: 12px;
-  background: #fff9e6;
-  border-radius: 6px;
-  border-left: 3px solid #f39c12;
-  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: oklch(95% 0.06 75);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--warning);
+  margin-bottom: 10px;
 }
 
 .recommendation-label {
-  font-size: 12px;
-  color: #d68910;
+  font: 11px/1 var(--font-body);
+  color: var(--warning);
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .recommendation-text {
-  font-size: 14px;
-  color: #7d6608;
-  line-height: 1.6;
+  font: 13px/1.5 var(--font-body);
+  color: var(--fg);
   font-weight: 500;
 }
 
 /* Reasoning */
 .choice-reasoning {
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
 }
 
 .choice-reasoning summary {
-  padding: 8px 12px;
+  padding: 6px 10px;
   cursor: pointer;
-  font-size: 13px;
-  color: #6c757d;
+  font: 12px/1 var(--font-body);
+  color: var(--muted);
   font-weight: 500;
   user-select: none;
 }
 
 .choice-reasoning summary:hover {
-  background: #f8f9fa;
+  background: var(--bg);
 }
 
 .reasoning-text {
-  padding: 12px;
-  border-top: 1px solid #dee2e6;
-  font-size: 13px;
-  line-height: 1.6;
-  color: #495057;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  font: 12px/1.5 var(--font-body);
+  color: var(--fg);
   font-style: italic;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .choice-card {
-    background: #2c3e50;
-  }
-
-  .choice-title {
-    color: #ecf0f1;
-  }
-
-  .context-label,
-  .choice-reasoning summary {
-    color: #95a5a6;
-  }
-
-  .choice-context,
-  .choice-option {
-    background: #34495e;
-    border-color: #4a5f7f;
-  }
-
-  .context-text {
-    color: #ecf0f1;
-  }
-
-  .choice-option:hover {
-    border-color: #9b59b6;
-  }
-
-  .choice-option.selected {
-    border-color: #9b59b6;
-    background: #3d2f4a;
-  }
-
-  .option-name {
-    color: #ecf0f1;
-  }
-
-  .option-description {
-    color: #bdc3c7;
-  }
-
-  .option-pros {
-    background: #2d4a3e;
-  }
-
-  .option-cons {
-    background: #4a2d2d;
-  }
-
-  .pros-label {
-    color: #2ecc71;
-  }
-
-  .cons-label {
-    color: #e74c3c;
-  }
-
-  .pros-list li {
-    color: #2ecc71;
-  }
-
-  .cons-list li {
-    color: #e74c3c;
-  }
-
-  .choice-recommendation {
-    background: #3d3d1f;
-    border-left-color: #f39c12;
-  }
-
-  .recommendation-label {
-    color: #f39c12;
-  }
-
-  .recommendation-text {
-    color: #f4d03f;
-  }
-
-  .choice-reasoning {
-    background: #34495e;
-    border-color: #4a5f7f;
-  }
-
-  .reasoning-text {
-    color: #bdc3c7;
-    border-top-color: #4a5f7f;
-  }
 }

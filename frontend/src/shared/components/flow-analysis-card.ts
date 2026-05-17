@@ -34,11 +34,11 @@ export function renderFlowAnalysisCard(card: Card, container: HTMLElement): void
 
       <div class="flow-type">
         <span class="flow-type-label">流程类型：</span>
-        <span class="flow-type-value">${escapeHtml(metadata.flow_type)}</span>
+        <span class="flow-type-value">${escapeHtml(metadata.flow_type || '')}</span>
       </div>
 
       <div class="flow-stages">
-        ${metadata.stages.map((stage, idx) => `
+        ${(metadata.stages || []).map((stage, idx) => `
           <div class="flow-stage">
             <div class="stage-header">
               <span class="stage-number">${idx + 1}</span>

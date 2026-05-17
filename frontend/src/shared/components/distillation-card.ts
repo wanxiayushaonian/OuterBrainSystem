@@ -38,7 +38,7 @@ export function renderDistillationCard(card: Card, container: HTMLElement): void
         <div class="distillation-recommended">
           <div class="recommended-label">推荐关键词：</div>
           <div class="recommended-list">
-            ${metadata.recommended_keywords.map(kw =>
+            ${(metadata.recommended_keywords || []).map(kw =>
               `<span class="recommended-keyword">${escapeHtml(kw)}</span>`
             ).join('')}
           </div>
@@ -59,8 +59,8 @@ export function renderDistillationCard(card: Card, container: HTMLElement): void
     </div>
   `;
 
-  // Attach event listeners for keyword selection
-  attachKeywordListeners(card.id);
+  // Attach event listeners for keyword selection (skip in gallery mode — read-only preview)
+  if (!state.galleryMode) attachKeywordListeners(card.id);
 }
 
 /**

@@ -3,40 +3,7 @@
 // ═══════════════════════════════════════════════════════
 import { state } from '../../core/types/state';
 import '../../i18n';
-import { semanticSearch } from '../chat/api';
-
-// Semantic search state
-let semanticResults: Set<number> | null = null;
-let semanticMode = false;
-
-export function setSemanticMode(on: boolean): void {
-  semanticMode = on;
-  if (!on) semanticResults = null;
-}
-
-export function isSemanticMode(): boolean {
-  return semanticMode;
-}
-
-let _searchTimer: ReturnType<typeof setTimeout> | null = null;
-
-export function triggerSemanticSearch(query: string): void {
-  if (_searchTimer) clearTimeout(_searchTimer);
-  if (!query.trim()) {
-    semanticResults = null;
-    renderInbox();
-    return;
-  }
-  _searchTimer = setTimeout(async () => {
-    try {
-      const res = await semanticSearch(query, state.cards);
-      semanticResults = new Set(res.results.map(r => r.id));
-    } catch {
-      semanticResults = null;
-    }
-    renderInbox();
-  }, 800);
-}
+import { renderCanvas, renderConnections } from '../canvas/renderer';
 
 const SOURCE_ICONS: Record<string, string> = {
   '浏览器': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
@@ -61,11 +28,7 @@ export function renderInbox(): void {
   const search = (searchInput?.value || '').toLowerCase();
   const inboxCards = state.cards.filter(c => !c.inCanvas);
   let filtered;
-  if (semanticMode && semanticResults && search) {
-    // Semantic mode: filter by semantic results
-    filtered = inboxCards.filter(c => semanticResults!.has(c.id));
-  } else if (search) {
-    // Text mode: simple text match
+  if (search) {
     filtered = inboxCards.filter(c => c.text.toLowerCase().includes(search));
   } else {
     filtered = inboxCards;

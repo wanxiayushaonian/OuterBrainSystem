@@ -150,7 +150,7 @@ export async function confirmSpaceModal(): Promise<void> {
   closeSpaceModal();
 
   try {
-    if (state.currentSpaceId) {
+    if (state.currentSpaceId && !state.galleryMode) {
       await saveSpaceState(state.currentSpaceId, serializeState());
     }
 

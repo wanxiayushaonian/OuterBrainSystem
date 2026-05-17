@@ -118,6 +118,7 @@ async def chat_stream(request: Request, body: ChatRequest):
                 current_tool_id = None
                 current_tool_name = None
                 current_tool_json = ""
+                thinking_text = ""
 
                 with chat_multi_stream(
                     system=system_prompt,
@@ -141,6 +142,8 @@ async def chat_stream(request: Request, body: ChatRequest):
                             elif event.delta.type == "input_json_delta":
                                 current_tool_json += event.delta.partial_json
                                 yield f"data: {json.dumps({'type': 'tool_delta', 'json': event.delta.partial_json})}\n\n"
+                            elif event.delta.type == "thinking_delta":
+                                thinking_text += event.delta.thinking or ""
                         elif event.type == "content_block_stop":
                             if current_tool_name and current_tool_json:
                                 tool_uses.append({
@@ -157,8 +160,10 @@ async def chat_stream(request: Request, body: ChatRequest):
                 if not tool_uses:
                     break
 
-                # Build assistant message with tool_use blocks
+                # Build assistant message with thinking + tool_use blocks
                 assistant_content = []
+                if thinking_text:
+                    assistant_content.append({"type": "thinking", "thinking": thinking_text})
                 for tu in tool_uses:
                     try:
                         tool_input = json.loads(tu["input"])
@@ -211,8 +216,8 @@ async def chat_stream(request: Request, body: ChatRequest):
                 messages.append({"role": "user", "content": tool_results})
 
         except Exception as e:
-            logger.error(f"Streaming chat failed: {e}")
-            yield f"data: {json.dumps({'type': 'error', 'message': 'Chat service unavailable'})}\n\n"
+            logger.error(f"Streaming chat failed: {type(e).__name__}: {e}", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Chat service unavailable: {type(e).__name__}'})}\n\n"
         finally:
             if session_id:
                 with _tool_result_lock:

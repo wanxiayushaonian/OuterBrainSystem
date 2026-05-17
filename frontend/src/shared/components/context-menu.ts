@@ -9,6 +9,8 @@ import { showToast } from './toast';
 import { quickInquiry, quickDebate } from '../../features/chat/panel';
 import { solidifyConclusion } from '../../version/manager';
 import { autoExpand, initModalTextarea } from '../utils/textarea';
+import { initWikilinkPopup } from './wikilink-popup';
+import { saveCurrentCanvasAsTemplate } from '../../features/templates/template-picker';
 import type { CardGroup } from '../../core/types/types';
 
 let contextTarget: number | null = null;
@@ -67,6 +69,13 @@ export function showCanvasContextMenu(e: MouseEvent, id: number): void {
   } else {
     addToGroupItem.style.display = 'none';
   }
+
+  // Show/hide "Save as Template" when 2+ cards are selected
+  const saveTemplateItem = menu.querySelector('[data-action="ctx-save-template"]') as HTMLElement;
+  const saveTemplateSep = document.getElementById('ctxSaveTemplateSep')!;
+  const canSaveTemplate = state.selectedCards.size >= 2;
+  if (saveTemplateItem) saveTemplateItem.style.display = canSaveTemplate ? '' : 'none';
+  if (saveTemplateSep) saveTemplateSep.style.display = canSaveTemplate ? '' : 'none';
 
   // Show/hide dock point items based on card's dockCount
   const card = state.cards.find(c => c.id === id);
@@ -545,6 +554,7 @@ export function initContextMenu(): void {
       else if (action === 'ctx-ungroup') contextAction('ungroup');
       else if (action === 'ctx-remove-from-group') contextAction('remove-from-group');
       else if (action === 'ctx-debate') contextAction('debate');
+      else if (action === 'ctx-save-template') { closeAllContextMenus(); saveCurrentCanvasAsTemplate(); }
       else if (action === 'ctx-to-inbox') contextAction('to-inbox');
       else if (action === 'ctx-add-dock') contextAction('add-dock');
       else if (action === 'ctx-remove-dock') contextAction('remove-dock');
@@ -611,5 +621,6 @@ export function initContextMenu(): void {
   const cardEditSave = document.getElementById('cardEditSave');
   cardEditClose?.addEventListener('click', closeCardEditModal);
   cardEditSave?.addEventListener('click', confirmCardEditModal);
-  initModalTextarea('cardEditInput', confirmCardEditModal, closeCardEditModal);
+  const cardEditTextarea = initModalTextarea('cardEditInput', confirmCardEditModal, closeCardEditModal);
+  if (cardEditTextarea) initWikilinkPopup(cardEditTextarea);
 }

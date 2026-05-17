@@ -35,6 +35,15 @@
   user-select: none;
   z-index: 10;
 }
+.canvas-card input,
+.canvas-card textarea,
+.canvas-card select,
+.canvas-card label,
+.canvas-card details,
+.canvas-card summary {
+  user-select: auto;
+  cursor: auto;
+}
 .canvas-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
 .canvas-card:hover .conn-port { opacity: 1; }
 .canvas-card.snap-target {
@@ -143,8 +152,7 @@
 /* ── Conclusion Card (special) ── */
 .canvas-card.conclusion-card {
   border: 2px solid oklch(75% 0.12 85);
-  background: linear-gradient(135deg, var(--surface), oklch(97% 0.01 85));
-  box-shadow: 0 0 0 4px oklch(90% 0.06 85 / 0.3);
+  background: var(--surface);
   width: 260px;
 }
 .conclusion-card .card-summary {
@@ -160,6 +168,51 @@
   cursor: pointer;
   margin-top: 6px;
   display: inline-block;
+}
+.conclusion-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 600 11px/1 var(--font-body);
+  color: oklch(50% 0.12 85);
+  margin-bottom: 6px;
+}
+.conclusion-title {
+  font: 13px/1.55 var(--font-body);
+  color: var(--fg);
+}
+.conclusion-title strong { font-weight: 600; }
+.conclusion-title em { font-style: italic; color: var(--muted); }
+.conclusion-title table { border-collapse: collapse; margin: 4px 0; font-size: 11px; }
+.conclusion-title th, .conclusion-title td { border: 1px solid var(--border); padding: 3px 6px; }
+.conclusion-title th { background: var(--bg); }
+.conclusion-summary {
+  font: 12px/1.5 var(--font-body);
+  color: var(--muted);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.conclusion-chain {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 11px/1 var(--font-body);
+  color: var(--muted);
+  margin-top: 6px;
+}
+.conclusion-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.conclusion-keyword {
+  font: 11px/1 var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: oklch(95% 0.01 250 / 0.6);
+  color: var(--muted);
 }
 
 /* ── Connections SVG ── */
@@ -342,6 +395,22 @@
   cursor: not-allowed;
 }
 
+/* ── Backlink Count ── */
+.backlink-count {
+  display: inline-block;
+  font: 10px/1 var(--font-mono);
+  color: var(--muted);
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 8px;
+  margin-top: 4px;
+  cursor: default;
+  transition: color var(--transition);
+}
+.backlink-count:hover {
+  color: var(--accent);
+}
+
 /* ── Selection Box ── */
 .selection-box {
   position: absolute;
@@ -384,4 +453,11 @@
   font-weight: 600;
   opacity: 1;
   z-index: 5;
+}
+
+/* ── Search Match ── */
+.canvas-card.search-match {
+  border-color: oklch(70% 0.18 85) !important;
+  box-shadow: 0 0 0 2px oklch(80% 0.12 85 / 0.4), var(--shadow-md);
+  z-index: 10;
 }

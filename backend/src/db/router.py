@@ -1,8 +1,6 @@
 # ═══════════════════════════════════════════════════════
 # Spaces API Router — /api/spaces/* endpoints
 # ═══════════════════════════════════════════════════════
-import logging
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -15,7 +13,6 @@ from src.db import (
     save_space_state,
 )
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 

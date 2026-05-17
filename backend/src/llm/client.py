@@ -5,6 +5,7 @@ import json
 import logging
 import os
 
+import httpx
 from anthropic import Anthropic
 from omegaconf import OmegaConf
 
@@ -18,17 +19,32 @@ _cfg: OmegaConf | None = None
 def get_client() -> Anthropic:
     global _client
     if _client is None:
+        # Ensure .env is loaded (handles uvicorn reload subprocess)
+        from dotenv import load_dotenv, find_dotenv
+        from pathlib import Path
+        env_path = Path(__file__).parent.parent.parent / ".env"
+        load_dotenv(env_path, override=True)
+
+        # Clean up empty env vars so they don't shadow real ones
+        for var in ("ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"):
+            if os.environ.get(var, "").strip() == "":
+                os.environ.pop(var, None)
+
         # Support both ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN
         api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+        logger.info(f"API key check: ANTHROPIC_API_KEY={'set' if os.environ.get('ANTHROPIC_API_KEY') else 'empty'}, ANTHROPIC_AUTH_TOKEN={'set' if os.environ.get('ANTHROPIC_AUTH_TOKEN') else 'empty'}, key_length={len(api_key) if api_key else 0}")
         if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN environment variable is required")
+            raise ValueError("ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN environment variable is required. Check your .env file.")
 
         # Support third-party Anthropic-compatible API via custom base URL
         base_url = os.environ.get("ANTHROPIC_BASE_URL") or get_cfg().llm.get("base_url", "")
+        timeout = 60.0  # 60 seconds timeout
+        logger.info(f"Initializing Anthropic client: base_url={base_url}, timeout={timeout}, api_key_length={len(api_key)}")
         if base_url:
-            _client = Anthropic(api_key=api_key, base_url=base_url)
+            _client = Anthropic(api_key=api_key, base_url=base_url, timeout=timeout, http_client=httpx.Client(verify=False, timeout=timeout))
         else:
-            _client = Anthropic(api_key=api_key)
+            _client = Anthropic(api_key=api_key, timeout=timeout)
+        logger.info(f"Anthropic client initialized: base_url={_client.base_url}")
     return _client
 
 
@@ -57,15 +73,33 @@ def chat(
     env_model = os.environ.get("ANTHROPIC_MODEL")
     effective_model = env_model or model or cfg.llm.model
 
+    # Only add thinking parameter for official Anthropic API
+    base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+    logger.info(f"LLM request: model={effective_model}, base_url={base_url}")
+
     for attempt in range(retries + 1):
-        response = client.messages.create(
-            model=effective_model,
-            max_tokens=max_tokens or cfg.llm.max_tokens,
-            temperature=temperature if temperature is not None else cfg.llm.temperature,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-            thinking={"type": "disabled"},
-        )
+        # Build request kwargs
+        kwargs = {
+            "model": effective_model,
+            "max_tokens": max_tokens or cfg.llm.max_tokens,
+            "temperature": temperature if temperature is not None else cfg.llm.temperature,
+            "system": system,
+            "messages": [{"role": "user", "content": user}],
+        }
+
+        if not base_url or "anthropic.com" in base_url:
+            kwargs["thinking"] = {"type": "disabled"}
+
+        try:
+            response = client.messages.create(**kwargs)
+        except Exception as e:
+            logger.error(f"LLM API call failed (attempt {attempt + 1}): {type(e).__name__}: {e}")
+            logger.error(f"Request details: model={effective_model}, base_url={client.base_url}")
+            if hasattr(e, '__cause__') and e.__cause__:
+                logger.error(f"Caused by: {type(e.__cause__).__name__}: {e.__cause__}")
+            if attempt < retries:
+                continue
+            raise
 
         # Extract text from response
         text = ""
@@ -208,15 +242,20 @@ def chat_multi(
     env_model = os.environ.get("ANTHROPIC_MODEL")
     effective_model = env_model or model or cfg.llm.model
 
+    base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+
     for attempt in range(retries + 1):
-        response = client.messages.create(
-            model=effective_model,
-            max_tokens=max_tokens or cfg.llm.max_tokens,
-            temperature=temperature if temperature is not None else cfg.llm.temperature,
-            system=system,
-            messages=messages,
-            thinking={"type": "disabled"},
-        )
+        kwargs: dict = {
+            "model": effective_model,
+            "max_tokens": max_tokens or cfg.llm.max_tokens,
+            "temperature": temperature if temperature is not None else cfg.llm.temperature,
+            "system": system,
+            "messages": messages,
+        }
+        if not base_url or "anthropic.com" in base_url:
+            kwargs["thinking"] = {"type": "disabled"}
+
+        response = client.messages.create(**kwargs)
 
         text = ""
         for block in response.content:
@@ -237,14 +276,14 @@ def chat_multi(
 CANVAS_TOOLS = [
     {
         "name": "add_card",
-        "description": "在画布上创建一张新卡片。支持 7 种类型：note(默认), distillation(提炼), socratic(质疑), flow_analysis(流程分析), choice(选择), vote(投票), conclusion(结论)。",
+        "description": "在画布上创建一张新卡片。支持 9 种类型：note(默认), distillation(提炼), socratic(质疑), flow_analysis(流程分析), choice(选择), vote(投票), conclusion(结论), debate(辩论), research_path(研究路径)。",
         "input_schema": {
             "type": "object",
             "properties": {
                 "text": {"type": "string", "description": "卡片内容"},
                 "source": {"type": "string", "description": "来源，如 'AI 质询'"},
                 "status": {"type": "string", "enum": ["", "pending", "verified", "conclusion"], "description": "卡片状态"},
-                "type": {"type": "string", "enum": ["note", "distillation", "socratic", "flow_analysis", "choice", "vote", "conclusion"], "description": "卡片类型"},
+                "type": {"type": "string", "enum": ["note", "distillation", "socratic", "flow_analysis", "choice", "vote", "conclusion", "debate", "research_path"], "description": "卡片类型"},
                 "metadata": {"type": "object", "description": "卡片元数据（用于专门类型）"},
                 "summary": {"type": "string", "description": "结论摘要（仅 conclusion 类型）"},
                 "chainIds": {"type": "array", "items": {"type": "integer"}, "description": "关联卡片ID（仅 conclusion 类型）"},
@@ -417,8 +456,13 @@ def chat_multi_stream(
         "temperature": temperature if temperature is not None else cfg.llm.temperature,
         "system": system,
         "messages": messages,
-        "thinking": {"type": "disabled"},
     }
+
+    # Only add thinking parameter for official Anthropic API
+    base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+    if not base_url or "anthropic.com" in base_url:
+        kwargs["thinking"] = {"type": "disabled"}
+
     if tools:
         kwargs["tools"] = tools
 
@@ -433,7 +477,11 @@ def chat_json(
     temperature: float | None = None,
 ) -> dict:
     """Send a chat request expecting JSON output."""
-    raw = chat(system, user, model, max_tokens, temperature)
+    try:
+        raw = chat(system, user, model, max_tokens, temperature)
+    except Exception as e:
+        logger.error(f"chat_json LLM call failed: {type(e).__name__}: {e}")
+        raise
     try:
         return _extract_json(raw)
     except ValueError:

@@ -37,12 +37,6 @@ class DebateRequest(BaseModel):
     stance: str = Field(default="against", description="'for' or 'against' the thesis")
 
 
-class SearchRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=200, description="Search query")
-    cards: list[dict] = Field(..., min_length=1, description="List of {id, text} card objects")
-    max_results: int = Field(default=10, ge=1, le=50, description="Max results to return")
-
-
 class ChatMessage(BaseModel):
     role: str = Field(..., description="'user' or 'assistant'")
     content: str
@@ -93,10 +87,6 @@ class DebateResponse(BaseModel):
     antithesis: str
     key_points: list[str]
     synthesis: str
-
-
-class SearchResponse(BaseModel):
-    results: list[dict]  # [{id, score, reason}]
 
 
 class ChatResponse(BaseModel):
